@@ -40,6 +40,7 @@ const BOARDS = {
       { key: 'budget', column: 'text_mm3ypbsb', kind: 'text' },               // Budget is a TEXT column on this board
       { key: 'dueDate', column: 'date_mm3yn5hj', kind: 'date' },
       { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },
@@ -62,6 +63,7 @@ const BOARDS = {
       { key: 'notes', column: 'long_text_mm3y5tph', kind: 'long_text' },
       { key: 'dueDate', column: 'date_mm3y77nq', kind: 'date' },
       { key: 'requesterEmail', column: 'email_mm57fky2', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm572kjx', kind: 'email' },   // "Also Notify" — optional extra recipient
     ],
   },
   creative: {
@@ -79,6 +81,7 @@ const BOARDS = {
       { key: 'contentType', column: 'dropdown_mm57r0h9', kind: 'dropdown' },
       { key: 'departmentOutlet', column: 'text_mm57mzz2', kind: 'text' },
       { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm57x2pd', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
       { key: 'referenceLinks', column: 'long_text_mm57mky2', kind: 'long_text' },
@@ -101,6 +104,7 @@ const BOARDS = {
       { key: 'quantity', column: 'numeric_mm57rqaq', kind: 'numbers' },
       { key: 'requesterName', column: 'text_mm57zdjb', kind: 'text' },
       { key: 'requesterEmail', column: 'email_mm57r2z6', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm579cnx', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
   },
@@ -142,6 +146,7 @@ const EMAIL_LABELS = {
   idealDueDate: 'Ideal due date', projectDescription: 'Project description',
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
+  ccEmail: 'Also notify',
 };
 
 function getRequesterEmail(fields) {
@@ -208,6 +213,7 @@ async function maybeSendConfirmation(category, cfg, fields, item) {
   if (!url) return { sent: false, skipped: true };
   const to = getRequesterEmail(fields);
   if (!to) return { sent: false, error: 'no requester email on submission' };
+  const cc = String(fields.ccEmail || '').trim();
   try {
     const summary = buildEmailSummary(category, cfg, fields, item);
     const resp = await fetch(url, {
@@ -215,6 +221,7 @@ async function maybeSendConfirmation(category, cfg, fields, item) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to,
+        cc,                       // optional "Also notify" recipient; blank string when none
         subject: summary.subject,
         html: summary.html,
         text: summary.text,

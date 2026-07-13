@@ -26,17 +26,16 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm3ym1pj',
     defaultStatus: 'New Request',
-    tableColumns: ['color_mm3ym1pj', 'color_mm3yp1gc', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
+    tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
-      { key: 'requestType', column: 'color_mm3yp1gc', kind: 'status' },       // General Procurement / Uniform Request
       { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
       { key: 'itemDescription', column: 'text_mm3y2353', kind: 'text' },
       { key: 'quantity', column: 'numeric_mm3yee8z', kind: 'numbers' },
       { key: 'vendor', column: 'text_mm3yng56', kind: 'text' },
       { key: 'budget', column: 'text_mm3ypbsb', kind: 'text' },               // Budget is a TEXT column on this board
-      { key: 'deliveryLocation', column: 'text_mm3yv10f', kind: 'text' },
       { key: 'dueDate', column: 'date_mm3yn5hj', kind: 'date' },
+      { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },
@@ -56,6 +55,7 @@ const BOARDS = {
       { key: 'quantity', column: 'numeric_mm3ygc6y', kind: 'numbers' },
       { key: 'notes', column: 'long_text_mm3y5tph', kind: 'long_text' },
       { key: 'dueDate', column: 'date_mm3y77nq', kind: 'date' },
+      { key: 'requesterEmail', column: 'email_mm57fky2', kind: 'email' },
     ],
   },
   creative: {
@@ -93,6 +93,19 @@ const BOARDS = {
     ],
   },
 };
+
+// Print per-outlet quantity mapping. On a Menus request each chosen outlet gets
+// its own quantity, written to a dedicated numeric column; the Outlet(s)
+// dropdown records which outlets and the Quantity column holds the grand total.
+const PRINT_OUTLET_QTY_COLUMNS = {
+  'Julene (breakfast)': 'numeric_mm579jzd',
+  'Julene (bar)': 'numeric_mm57sh3t',
+  'Citrus Shack': 'numeric_mm571v9j',
+  'Lovebirds': 'numeric_mm576e7k',
+  'Sandbar': 'numeric_mm57ce7a',
+};
+const PRINT_OUTLET_DROPDOWN = 'dropdown_mm57yjtk';
+const PRINT_TOTAL_QTY = 'numeric_mm57rqaq';
 
 // ---------------------------------------------------------------------------
 // KPI bucketing. The boards use different status vocabularies, so we normalize
@@ -193,6 +206,25 @@ async function createRoutedRequest({ category, fields }) {
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
   const name = (fields && (fields.name || fields.title)) || `${cfg.label} Request`;
   const columnValues = buildColumnValues(cfg, fields || {});
+
+  // Print · Menus: expand per-outlet quantities into their columns, set the
+  // Outlet(s) dropdown, and total the Quantity column.
+  if (category === 'print' && fields && fields.outletQuantities && typeof fields.outletQuantities === 'object') {
+    const chosen = [];
+    let total = 0;
+    for (const [outlet, qty] of Object.entries(fields.outletQuantities)) {
+      const col = PRINT_OUTLET_QTY_COLUMNS[outlet];
+      const n = Number(qty);
+      if (!col || qty === '' || qty === null || qty === undefined || Number.isNaN(n)) continue;
+      columnValues[col] = String(n);
+      total += n;
+      chosen.push(outlet);
+    }
+    if (chosen.length) {
+      columnValues[PRINT_OUTLET_DROPDOWN] = { labels: chosen };
+      columnValues[PRINT_TOTAL_QTY] = String(total);
+    }
+  }
 
   const query = `
     mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {

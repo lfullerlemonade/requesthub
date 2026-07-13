@@ -30,6 +30,8 @@ const BOARDS = {
     defaultStatus: 'New Request',
     emailColumn: 'email_mm57tjxr',      // requester-email column, used to scope requesters to their own items
     emailFieldKey: 'requesterEmail',
+    dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
+    teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
     tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -41,6 +43,7 @@ const BOARDS = {
       { key: 'dueDate', column: 'date_mm3yn5hj', kind: 'date' },
       { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'team', column: 'dropdown_mm57gkn3', kind: 'dropdown' },
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },
@@ -52,6 +55,8 @@ const BOARDS = {
     defaultStatus: 'New Request',
     emailColumn: 'email_mm57fky2',
     emailFieldKey: 'requesterEmail',
+    dateColumn: 'date_mm3y77nq',
+    teamColumn: 'dropdown_mm57xa91',
     tableColumns: ['color_mm3yma9j', 'dropdown_mm3y16t7', 'text_mm3yghj8', 'numeric_mm3ygc6y', 'date_mm3y77nq'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -64,6 +69,7 @@ const BOARDS = {
       { key: 'dueDate', column: 'date_mm3y77nq', kind: 'date' },
       { key: 'requesterEmail', column: 'email_mm57fky2', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm572kjx', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'team', column: 'dropdown_mm57xa91', kind: 'dropdown' },
     ],
   },
   creative: {
@@ -74,6 +80,8 @@ const BOARDS = {
     defaultStatus: 'New',
     emailColumn: 'email_mm57jmf2',
     emailFieldKey: 'email',
+    dateColumn: 'date_mm57j8b',
+    teamColumn: 'dropdown_mm575bmp',
     fileColumn: 'file_mm57s5z7', // uploaded reference files land here
     tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'text_mm57mzz2', 'date_mm57j8b'],
     fields: [
@@ -82,6 +90,7 @@ const BOARDS = {
       { key: 'departmentOutlet', column: 'text_mm57mzz2', kind: 'text' },
       { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm57x2pd', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'team', column: 'dropdown_mm575bmp', kind: 'dropdown' },
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
       { key: 'referenceLinks', column: 'long_text_mm57mky2', kind: 'long_text' },
@@ -95,6 +104,8 @@ const BOARDS = {
     defaultStatus: 'New',
     emailColumn: 'email_mm57r2z6',
     emailFieldKey: 'requesterEmail',
+    dateColumn: 'date_mm57f4h4',
+    teamColumn: 'dropdown_mm57k4ha',
     tableColumns: ['color_mm57d28j', 'color_mm57egma', 'dropdown_mm57yjtk', 'numeric_mm57rqaq', 'date_mm57f4h4'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -105,6 +116,7 @@ const BOARDS = {
       { key: 'requesterName', column: 'text_mm57zdjb', kind: 'text' },
       { key: 'requesterEmail', column: 'email_mm57r2z6', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm579cnx', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'team', column: 'dropdown_mm57k4ha', kind: 'dropdown' },
       { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
   },
@@ -146,7 +158,7 @@ const EMAIL_LABELS = {
   idealDueDate: 'Ideal due date', projectDescription: 'Project description',
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
-  ccEmail: 'Also notify',
+  ccEmail: 'Also notify', team: 'Team',
 };
 
 function getRequesterEmail(fields) {
@@ -589,26 +601,95 @@ async function fetchAllStatusValues(cfg, emailFilter = null) {
   return labels;
 }
 
+function toYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Pull just the fields the dashboard needs (status, due date, team) for every
+// item on a board. Requester scoping via emailFilter, same as elsewhere.
+async function fetchDashboardItems(cfg, emailFilter = null) {
+  const out = [];
+  const cols = [cfg.statusColumn, cfg.dateColumn, cfg.teamColumn].filter(Boolean);
+  if (emailFilter && !cols.includes(cfg.emailColumn)) cols.push(cfg.emailColumn);
+  const qp = emailFilter
+    ? { rules: [{ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' }
+    : null;
+  let cursor = null;
+  do {
+    let page;
+    if (!cursor) {
+      const query = `
+        query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
+          boards (ids: [$boardId]) {
+            items_page (limit: 500, query_params: $qp) { cursor items { updated_at column_values (ids: $cols) { id text } } }
+          }
+        }`;
+      const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, qp });
+      page = data.boards[0].items_page;
+    } else {
+      const query = `
+        query ($cursor: String!, $cols: [String!]) {
+          next_items_page (cursor: $cursor, limit: 500) { cursor items { updated_at column_values (ids: $cols) { id text } } }
+        }`;
+      const data = await mondayQuery(query, { cursor, cols });
+      page = data.next_items_page;
+    }
+    cursor = page.cursor;
+    for (const it of page.items) {
+      const byId = {};
+      for (const c of it.column_values) byId[c.id] = c.text || '';
+      if (emailFilter && (byId[cfg.emailColumn] || '').trim().toLowerCase() !== emailFilter) continue;
+      out.push({
+        status: byId[cfg.statusColumn] || '',
+        due: (byId[cfg.dateColumn] || '').trim(),
+        team: (byId[cfg.teamColumn] || '').trim(),
+        updatedAt: it.updated_at,
+      });
+    }
+  } while (cursor);
+  return out;
+}
+
+// Leadership dashboard: load (open), risk (overdue / due this week), throughput
+// (completed in last 30 days), plus open counts by board and by team.
 async function dashboardCounts({ role, email } = {}) {
   const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
-  const totals = { active: 0, review: 0, progress: 0, completed: 0 };
-  const perBoard = {};
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toYMD(today);
+  const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
+  const in7Str = toYMD(in7);
+  const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+  const openByBoard = {};
+  const openByTeam = {};
+  let openTotal = 0, overdue = 0, dueThisWeek = 0, completed30d = 0;
+
   const results = await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
-      const labels = await fetchAllStatusValues(cfg, emailFilter);
-      const local = { active: 0, review: 0, progress: 0, completed: 0, total: labels.length };
-      for (const l of labels) {
-        const b = bucketForStatus(l);
-        if (b) local[b] += 1;
+      const items = await fetchDashboardItems(cfg, emailFilter);
+      let open = 0;
+      for (const it of items) {
+        const bucket = bucketForStatus(it.status);
+        const isOpen = bucket !== 'completed' && bucket !== null; // not done, not cancelled
+        if (isOpen) {
+          open += 1;
+          const team = it.team || 'Unspecified';
+          openByTeam[team] = (openByTeam[team] || 0) + 1;
+          if (it.due && it.due < todayStr) overdue += 1;
+          else if (it.due && it.due >= todayStr && it.due <= in7Str) dueThisWeek += 1;
+        } else if (bucket === 'completed') {
+          const t = it.updatedAt ? new Date(it.updatedAt).getTime() : 0;
+          if (t && t >= cutoff30) completed30d += 1; // approx: last edit ≈ completion
+        }
       }
-      return [key, local];
+      return [key, open];
     })
   );
-  for (const [key, local] of results) {
-    perBoard[key] = local;
-    for (const b of BUCKETS) totals[b] += local[b];
-  }
-  return { ok: true, totals, perBoard };
+  for (const [key, open] of results) { openByBoard[key] = open; openTotal += open; }
+  return { ok: true, openTotal, overdue, dueThisWeek, completed30d, openByBoard, openByTeam };
 }
 
 async function recentSubmissions({ limit = 15, role, email } = {}) {

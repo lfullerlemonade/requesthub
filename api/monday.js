@@ -10,6 +10,8 @@
 //   - recent-submissions     { limit? }
 //   - list-board-items       { category, search?, status?, cursor?, limit? }
 
+import crypto from 'node:crypto';
+
 const MONDAY_API_URL = 'https://api.monday.com/v2';
 const MONDAY_API_VERSION = '2024-10';
 const ACCOUNT_SLUG = 'hbcapital'; // used to build item deep-links
@@ -310,6 +312,82 @@ async function mondayQuery(query, variables) {
 }
 
 // ---------------------------------------------------------------------------
+// Access control (email gate) + usage logging.
+//
+// Two env vars turn this on:
+//   APPROVED_EMAILS  comma/space/newline-separated list of allowed emails
+//   AUTH_SECRET      any long random string; signs the access tokens
+// If either is unset the gate is OPEN (app behaves as before) so you can't lock
+// yourself out mid-setup. Set BOTH to enforce the gate. Because email-only has
+// no password, anyone who knows a listed address can enter — this is access
+// control + usage logging, not strong authentication.
+//
+// Every access attempt and every request submission is logged to the
+// "Request Hub — Access Log" board so you can see who's using it and how often.
+// ---------------------------------------------------------------------------
+const ACCESS_LOG_BOARD = 18421802590;
+const ACCESS_LOG_COLS = { event: 'color_mm57edg2', category: 'text_mm57eex7', detail: 'text_mm579nym' };
+const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+function approvedEmails() {
+  return String(process.env.APPROVED_EMAILS || '')
+    .split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
+function isEmailApproved(email) {
+  const list = approvedEmails();
+  if (!list.length) return true; // gate not configured → open
+  return list.includes(String(email || '').trim().toLowerCase());
+}
+function authConfigured() { return Boolean(process.env.AUTH_SECRET); }
+
+function issueToken(email) {
+  const emailLc = String(email).trim().toLowerCase();
+  if (!authConfigured()) return 'open';
+  const payload = `${emailLc}|${Date.now() + TOKEN_TTL_MS}`;
+  const b64 = Buffer.from(payload).toString('base64url');
+  const sig = crypto.createHmac('sha256', process.env.AUTH_SECRET).update(b64).digest('hex');
+  return `${b64}.${sig}`;
+}
+function verifyToken(token) {
+  if (!authConfigured()) return { valid: true, email: null }; // gate open
+  if (!token || typeof token !== 'string' || !token.includes('.')) return { valid: false };
+  const [b64, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', process.env.AUTH_SECRET).update(b64).digest('hex');
+  let a, b;
+  try { a = Buffer.from(sig || '', 'hex'); b = Buffer.from(expected, 'hex'); } catch { return { valid: false }; }
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { valid: false };
+  let payload;
+  try { payload = Buffer.from(b64, 'base64url').toString('utf8'); } catch { return { valid: false }; }
+  const [email, expStr] = payload.split('|');
+  if (!email || !expStr || Number(expStr) < Date.now()) return { valid: false };
+  if (!isEmailApproved(email)) return { valid: false }; // access revoked if removed from list
+  return { valid: true, email };
+}
+
+async function logAccess(email, eventLabel, category, detail) {
+  try {
+    const cv = {
+      [ACCESS_LOG_COLS.event]: { label: eventLabel },
+      [ACCESS_LOG_COLS.category]: category || '',
+      [ACCESS_LOG_COLS.detail]: detail || '',
+    };
+    await mondayQuery(
+      `mutation ($b: ID!, $n: String!, $cv: JSON!) { create_item (board_id: $b, item_name: $n, column_values: $cv, create_labels_if_missing: false) { id } }`,
+      { b: String(ACCESS_LOG_BOARD), n: (email || 'unknown').slice(0, 240), cv: JSON.stringify(cv) }
+    );
+  } catch (e) { /* logging is best-effort — never block the request on it */ }
+}
+
+async function verifyEmailAction({ email }) {
+  const clean = String(email || '').trim();
+  if (!clean || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw badRequest('Please enter a valid email address.');
+  const approved = isEmailApproved(clean);
+  await logAccess(clean, approved ? 'Access approved' : 'Access denied', '', approved ? 'Signed in' : 'Email not on approved list');
+  if (!approved) return { ok: true, approved: false };
+  return { ok: true, approved: true, token: issueToken(clean), email: clean.toLowerCase() };
+}
+
+// ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 async function createRoutedRequest({ category, fields }) {
@@ -370,6 +448,8 @@ async function createRoutedRequest({ category, fields }) {
   const emailOutcome = await maybeSendConfirmation(category, cfg, fields || {}, item);
   result.emailSent = Boolean(emailOutcome.sent);
   if (emailOutcome.error) result.emailError = emailOutcome.error;
+
+  await logAccess(getRequesterEmail(fields || {}) || 'unknown', 'Request submitted', cfg.label, item.name);
 
   return result;
 }
@@ -570,8 +650,18 @@ export default async function handler(req, res) {
     const params = req.method === 'POST' ? await readBody(req) : (req.query || {});
     const action = params.action || (req.query && req.query.action);
 
+    // Access gate: data actions require a valid token issued by verify-email.
+    const GATED = new Set(['dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request']);
+    if (GATED.has(action)) {
+      const auth = verifyToken(params.token);
+      if (!auth.valid) { res.status(401).json({ ok: false, error: 'Not authorized — please sign in again.', authRequired: true }); return; }
+    }
+
     let result;
     switch (action) {
+      case 'verify-email':
+        result = await verifyEmailAction({ email: params.email });
+        break;
       case 'create-routed-request':
         result = await createRoutedRequest({ category: params.category, fields: params.fields });
         break;

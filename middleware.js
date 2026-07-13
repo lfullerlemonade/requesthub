@@ -37,7 +37,9 @@ async function isValidToken(token, secret) {
     const expected = [...new Uint8Array(macBuf)].map((b) => b.toString(16).padStart(2, '0')).join('');
     if (expected !== sig) return false;
     const payload = b64urlDecode(b64);
-    const exp = Number(payload.split('|')[1]);
+    // Token payload is "email|role|exp" (exp is always the LAST segment).
+    const parts = payload.split('|');
+    const exp = Number(parts[parts.length - 1]);
     if (!exp || exp < Date.now()) return false;
     return true;
   } catch (e) {

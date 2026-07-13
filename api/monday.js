@@ -28,6 +28,8 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm3ym1pj',
     defaultStatus: 'New Request',
+    emailColumn: 'email_mm57tjxr',      // requester-email column, used to scope requesters to their own items
+    emailFieldKey: 'requesterEmail',
     tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -47,6 +49,8 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm3yma9j',
     defaultStatus: 'New Request',
+    emailColumn: 'email_mm57fky2',
+    emailFieldKey: 'requesterEmail',
     tableColumns: ['color_mm3yma9j', 'dropdown_mm3y16t7', 'text_mm3yghj8', 'numeric_mm3ygc6y', 'date_mm3y77nq'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -66,6 +70,8 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm57d4mj',
     defaultStatus: 'New',
+    emailColumn: 'email_mm57jmf2',
+    emailFieldKey: 'email',
     fileColumn: 'file_mm57s5z7', // uploaded reference files land here
     tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'text_mm57mzz2', 'date_mm57j8b'],
     fields: [
@@ -84,6 +90,8 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm57d28j',
     defaultStatus: 'New',
+    emailColumn: 'email_mm57r2z6',
+    emailFieldKey: 'requesterEmail',
     tableColumns: ['color_mm57d28j', 'color_mm57egma', 'dropdown_mm57yjtk', 'numeric_mm57rqaq', 'date_mm57f4h4'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -362,27 +370,59 @@ const ACCESS_LOG_BOARD = 18421802590;
 const ACCESS_LOG_COLS = { event: 'color_mm57edg2', category: 'text_mm57eex7', detail: 'text_mm579nym' };
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
+// Access (Users) board — the source of truth for who can sign in and their role.
+// Each row is one person: Email + Role (Admin | Requester). Admins see everything;
+// requesters see only their own requests. Manage it in Monday, no redeploy needed.
+const USERS_BOARD = 18421837454;
+const USERS_EMAIL_COL = 'email_mm578403';
+const USERS_ROLE_COL = 'color_mm57b54n';
+
 function approvedEmails() {
   return String(process.env.APPROVED_EMAILS || '')
     .split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
 }
-function isEmailApproved(email) {
-  const list = approvedEmails();
-  if (!list.length) return true; // gate not configured → open
-  return list.includes(String(email || '').trim().toLowerCase());
-}
 function authConfigured() { return Boolean(process.env.AUTH_SECRET); }
 
-function issueToken(email) {
+// Resolve a sign-in email to a role: 'admin', 'requester', or null (blocked).
+// APPROVED_EMAILS acts as an emergency admin "break-glass" list so a Monday
+// outage can't lock everyone out; the Users board is the normal source of truth.
+async function getUserRole(email) {
+  const clean = String(email || '').trim().toLowerCase();
+  if (!clean) return null;
+  if (approvedEmails().includes(clean)) return 'admin';
+  try {
+    const query = `
+      query ($b: ID!, $cols: [String!], $qp: ItemsQuery) {
+        boards (ids: [$b]) {
+          items_page (limit: 50, query_params: $qp) {
+            items { column_values (ids: $cols) { id text } }
+          }
+        }
+      }`;
+    const qp = { rules: [{ column_id: USERS_EMAIL_COL, compare_value: [clean], operator: 'contains_text' }], operator: 'and' };
+    const data = await mondayQuery(query, { b: String(USERS_BOARD), cols: [USERS_EMAIL_COL, USERS_ROLE_COL], qp });
+    for (const it of (data.boards[0] ? data.boards[0].items_page.items : [])) {
+      const byId = {};
+      for (const c of it.column_values) byId[c.id] = (c.text || '').trim();
+      if ((byId[USERS_EMAIL_COL] || '').toLowerCase() === clean) {
+        return (byId[USERS_ROLE_COL] || '').toLowerCase() === 'admin' ? 'admin' : 'requester';
+      }
+    }
+  } catch (e) { /* fall through → blocked */ }
+  return null;
+}
+
+function issueToken(email, role) {
   const emailLc = String(email).trim().toLowerCase();
+  const r = role === 'admin' ? 'admin' : 'requester';
   if (!authConfigured()) return 'open';
-  const payload = `${emailLc}|${Date.now() + TOKEN_TTL_MS}`;
+  const payload = `${emailLc}|${r}|${Date.now() + TOKEN_TTL_MS}`;
   const b64 = Buffer.from(payload).toString('base64url');
   const sig = crypto.createHmac('sha256', process.env.AUTH_SECRET).update(b64).digest('hex');
   return `${b64}.${sig}`;
 }
 function verifyToken(token) {
-  if (!authConfigured()) return { valid: true, email: null }; // gate open
+  if (!authConfigured()) return { valid: true, email: null, role: 'admin' }; // gate open → full access
   if (!token || typeof token !== 'string' || !token.includes('.')) return { valid: false };
   const [b64, sig] = token.split('.');
   const expected = crypto.createHmac('sha256', process.env.AUTH_SECRET).update(b64).digest('hex');
@@ -391,10 +431,10 @@ function verifyToken(token) {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { valid: false };
   let payload;
   try { payload = Buffer.from(b64, 'base64url').toString('utf8'); } catch { return { valid: false }; }
-  const [email, expStr] = payload.split('|');
+  const parts = payload.split('|');
+  const email = parts[0], role = parts[1], expStr = parts[2];
   if (!email || !expStr || Number(expStr) < Date.now()) return { valid: false };
-  if (!isEmailApproved(email)) return { valid: false }; // access revoked if removed from list
-  return { valid: true, email };
+  return { valid: true, email, role: role === 'admin' ? 'admin' : 'requester' };
 }
 
 async function logAccess(email, eventLabel, category, detail) {
@@ -414,27 +454,35 @@ async function logAccess(email, eventLabel, category, detail) {
 async function verifyEmailAction({ email }) {
   const clean = String(email || '').trim();
   if (!clean || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw badRequest('Please enter a valid email address.');
-  const approved = isEmailApproved(clean);
-  await logAccess(clean, approved ? 'Access approved' : 'Access denied', '', approved ? 'Signed in' : 'Email not on approved list');
+  if (!authConfigured()) return { ok: true, approved: true, role: 'admin', token: 'open', email: clean.toLowerCase() };
+  const role = await getUserRole(clean);
+  const approved = Boolean(role);
+  await logAccess(clean, approved ? 'Access approved' : 'Access denied', role || '', approved ? `Signed in (${role})` : 'Email not on access list');
   if (!approved) return { ok: true, approved: false };
-  return { ok: true, approved: true, token: issueToken(clean), email: clean.toLowerCase() };
+  return { ok: true, approved: true, role, token: issueToken(clean, role), email: clean.toLowerCase() };
 }
 
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
-async function createRoutedRequest({ category, fields }) {
+async function createRoutedRequest({ category, fields, role, authEmail }) {
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
-  const name = (fields && (fields.name || fields.title)) || `${cfg.label} Request`;
-  const columnValues = buildColumnValues(cfg, fields || {});
+  const f = { ...(fields || {}) };
+  // Requesters can only file requests as themselves: force the requester-email
+  // column to their signed-in identity so it always shows under "My Requests".
+  if (role === 'requester' && authEmail && cfg.emailFieldKey) {
+    f[cfg.emailFieldKey] = authEmail;
+  }
+  const name = (f.name || f.title) || `${cfg.label} Request`;
+  const columnValues = buildColumnValues(cfg, f);
 
   // Print · Menus: expand per-outlet quantities into their columns, set the
   // Outlet(s) dropdown, and total the Quantity column.
-  if (category === 'print' && fields && fields.outletQuantities && typeof fields.outletQuantities === 'object') {
+  if (category === 'print' && f.outletQuantities && typeof f.outletQuantities === 'object') {
     const chosen = [];
     let total = 0;
-    for (const [outlet, qty] of Object.entries(fields.outletQuantities)) {
+    for (const [outlet, qty] of Object.entries(f.outletQuantities)) {
       const col = PRINT_OUTLET_QTY_COLUMNS[outlet];
       const n = Number(qty);
       if (!col || qty === '' || qty === null || qty === undefined || Number.isNaN(n)) continue;
@@ -478,65 +526,69 @@ async function createRoutedRequest({ category, fields }) {
   };
 
   // Attach uploaded reference files (best-effort; currently Creative only).
-  if (cfg.fileColumn && fields && Array.isArray(fields.files) && fields.files.length) {
-    const up = await uploadFilesToItem(item.id, cfg.fileColumn, fields.files);
+  if (cfg.fileColumn && Array.isArray(f.files) && f.files.length) {
+    const up = await uploadFilesToItem(item.id, cfg.fileColumn, f.files);
     result.filesAttached = up.filter((r) => r.ok).length;
     const failed = up.filter((r) => !r.ok);
-    if (failed.length) result.fileErrors = failed.map((f) => `${f.name}: ${f.error}`);
+    if (failed.length) result.fileErrors = failed.map((x) => `${x.name}: ${x.error}`);
   }
 
   // Best-effort confirmation email — never block or fail the submission on it.
-  const emailOutcome = await maybeSendConfirmation(category, cfg, fields || {}, item);
+  const emailOutcome = await maybeSendConfirmation(category, cfg, f, item);
   result.emailSent = Boolean(emailOutcome.sent);
   if (emailOutcome.error) result.emailError = emailOutcome.error;
 
-  await logAccess(getRequesterEmail(fields || {}) || 'unknown', 'Request submitted', cfg.label, item.name);
+  await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
 
   return result;
 }
 
-async function fetchAllStatusValues(cfg) {
+// Fetch status labels for a board. If emailFilter is set (a requester), only
+// items whose requester-email column matches are counted.
+async function fetchAllStatusValues(cfg, emailFilter = null) {
   const labels = [];
+  const cols = emailFilter ? [cfg.statusColumn, cfg.emailColumn] : [cfg.statusColumn];
+  const qp = emailFilter
+    ? { rules: [{ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' }
+    : null;
   let cursor = null;
   do {
-    let data;
+    let page;
     if (!cursor) {
       const query = `
-        query ($boardId: ID!, $col: [String!]) {
+        query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
           boards (ids: [$boardId]) {
-            items_page (limit: 500) {
-              cursor
-              items { column_values (ids: $col) { text } }
-            }
+            items_page (limit: 500, query_params: $qp) { cursor items { column_values (ids: $cols) { id text } } }
           }
         }`;
-      data = await mondayQuery(query, { boardId: String(cfg.boardId), col: [cfg.statusColumn] });
-      const page = data.boards[0].items_page;
-      cursor = page.cursor;
-      for (const it of page.items) labels.push(it.column_values[0] ? it.column_values[0].text : '');
+      const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, qp });
+      page = data.boards[0].items_page;
     } else {
       const query = `
-        query ($cursor: String!, $col: [String!]) {
-          next_items_page (cursor: $cursor, limit: 500) {
-            cursor
-            items { column_values (ids: $col) { text } }
-          }
+        query ($cursor: String!, $cols: [String!]) {
+          next_items_page (cursor: $cursor, limit: 500) { cursor items { column_values (ids: $cols) { id text } } }
         }`;
-      data = await mondayQuery(query, { cursor, col: [cfg.statusColumn] });
-      const page = data.next_items_page;
-      cursor = page.cursor;
-      for (const it of page.items) labels.push(it.column_values[0] ? it.column_values[0].text : '');
+      const data = await mondayQuery(query, { cursor, cols });
+      page = data.next_items_page;
+    }
+    cursor = page.cursor;
+    for (const it of page.items) {
+      const byId = {};
+      for (const c of it.column_values) byId[c.id] = c.text || '';
+      if (emailFilter && (byId[cfg.emailColumn] || '').trim().toLowerCase() !== emailFilter) continue;
+      labels.push(byId[cfg.statusColumn] || '');
     }
   } while (cursor);
   return labels;
 }
 
-async function dashboardCounts() {
+async function dashboardCounts({ role, email } = {}) {
+  const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
   const totals = { active: 0, review: 0, progress: 0, completed: 0 };
   const perBoard = {};
   const results = await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
-      const labels = await fetchAllStatusValues(cfg);
+      const labels = await fetchAllStatusValues(cfg, emailFilter);
       const local = { active: 0, review: 0, progress: 0, completed: 0, total: labels.length };
       for (const l of labels) {
         const b = bucketForStatus(l);
@@ -552,26 +604,34 @@ async function dashboardCounts() {
   return { ok: true, totals, perBoard };
 }
 
-async function recentSubmissions({ limit = 15 } = {}) {
+async function recentSubmissions({ limit = 15, role, email } = {}) {
+  const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
   const all = [];
   await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
+      const cols = emailFilter ? [cfg.statusColumn, cfg.emailColumn] : [cfg.statusColumn];
+      const qp = emailFilter
+        ? { rules: [{ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' }
+        : null;
       const query = `
-        query ($boardId: ID!, $col: [String!]) {
+        query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
           boards (ids: [$boardId]) {
-            items_page (limit: 100) {
-              items { id name created_at column_values (ids: $col) { text } }
+            items_page (limit: 100, query_params: $qp) {
+              items { id name created_at column_values (ids: $cols) { id text } }
             }
           }
         }`;
-      const data = await mondayQuery(query, { boardId: String(cfg.boardId), col: [cfg.statusColumn] });
+      const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, qp });
       for (const it of data.boards[0].items_page.items) {
+        const byId = {};
+        for (const c of it.column_values) byId[c.id] = c.text || '';
+        if (emailFilter && (byId[cfg.emailColumn] || '').trim().toLowerCase() !== emailFilter) continue;
         all.push({
           itemId: it.id,
           name: it.name,
           category: cfg.label,
           categoryKey: key,
-          status: it.column_values[0] ? it.column_values[0].text : '',
+          status: byId[cfg.statusColumn] || '',
           createdAt: it.created_at,
           url: itemUrl(cfg.boardId, it.id),
         });
@@ -582,10 +642,11 @@ async function recentSubmissions({ limit = 15 } = {}) {
   return { ok: true, items: all.slice(0, limit) };
 }
 
-async function listBoardItems({ category, search, status, cursor, limit = 25 }) {
+async function listBoardItems({ category, search, status, cursor, limit = 25, role, email }) {
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
-  const cols = Array.from(new Set([cfg.statusColumn, ...cfg.tableColumns]));
+  const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
+  const cols = Array.from(new Set([cfg.statusColumn, ...cfg.tableColumns, ...(emailFilter ? [cfg.emailColumn] : [])]));
 
   const rules = [];
   if (search && search.trim()) {
@@ -593,6 +654,9 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
   }
   if (status && status.trim()) {
     rules.push({ column_id: cfg.statusColumn, compare_value: [status.trim()], operator: 'contains_text' });
+  }
+  if (emailFilter) {
+    rules.push({ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' });
   }
 
   let page;
@@ -621,7 +685,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
     page = data.boards[0].items_page;
   }
 
-  const items = page.items.map((it) => {
+  let items = page.items.map((it) => {
     const byId = {};
     for (const c of it.column_values) byId[c.id] = c.text || '';
     return {
@@ -633,6 +697,8 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
       url: itemUrl(cfg.boardId, it.id),
     };
   });
+  // Exact-match safeguard so a requester never sees a near-miss email's items.
+  if (emailFilter) items = items.filter((it) => (it.columns[cfg.emailColumn] || '').trim().toLowerCase() === emailFilter);
 
   return {
     ok: true,
@@ -642,7 +708,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
     columns: cfg.tableColumns,
     items,
     nextCursor: page.cursor || null,
-    hasMore: Boolean(page.cursor) && items.length > 0,
+    hasMore: Boolean(page.cursor) && page.items.length > 0,
   };
 }
 
@@ -692,10 +758,15 @@ export default async function handler(req, res) {
     const action = params.action || (req.query && req.query.action);
 
     // Access gate: data actions require a valid token issued by verify-email.
+    // The token carries the signed-in email + role, which scopes what they see.
     const GATED = new Set(['dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request']);
+    let authRole = 'admin';
+    let authEmail = null;
     if (GATED.has(action)) {
       const auth = verifyToken(params.token);
       if (!auth.valid) { res.status(401).json({ ok: false, error: 'Not authorized — please sign in again.', authRequired: true }); return; }
+      authRole = auth.role || 'requester';
+      authEmail = auth.email;
     }
 
     let result;
@@ -708,13 +779,13 @@ export default async function handler(req, res) {
         }
         break;
       case 'create-routed-request':
-        result = await createRoutedRequest({ category: params.category, fields: params.fields });
+        result = await createRoutedRequest({ category: params.category, fields: params.fields, role: authRole, authEmail });
         break;
       case 'dashboard-counts':
-        result = await dashboardCounts();
+        result = await dashboardCounts({ role: authRole, email: authEmail });
         break;
       case 'recent-submissions':
-        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15 });
+        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: authRole, email: authEmail });
         break;
       case 'list-board-items':
         result = await listBoardItems({
@@ -723,6 +794,8 @@ export default async function handler(req, res) {
           status: params.status,
           cursor: params.cursor,
           limit: params.limit ? Number(params.limit) : 25,
+          role: authRole,
+          email: authEmail,
         });
         break;
       default:

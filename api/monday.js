@@ -66,6 +66,7 @@ const BOARDS = {
     group: null,
     statusColumn: 'color_mm57d4mj',
     defaultStatus: 'New',
+    fileColumn: 'file_mm57s5z7', // uploaded reference files land here
     tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'text_mm57mzz2', 'date_mm57j8b'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -74,6 +75,7 @@ const BOARDS = {
       { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
+      { key: 'referenceLinks', column: 'long_text_mm57mky2', kind: 'long_text' },
     ],
   },
   print: {
@@ -218,6 +220,33 @@ async function maybeSendConfirmation(category, cfg, fields, item) {
   } catch (e) {
     return { sent: false, error: e.message };
   }
+}
+
+// Upload reference files to an item's file column via Monday's file endpoint.
+// `files` is an array of { name, type, data } where data is base64. Best-effort.
+async function uploadFilesToItem(itemId, fileColumn, files) {
+  const token = process.env.MONDAY_API_TOKEN;
+  const results = [];
+  for (const f of files) {
+    if (!f || !f.data) continue;
+    try {
+      const buffer = Buffer.from(f.data, 'base64');
+      const form = new FormData();
+      form.append('query', `mutation ($file: File!) { add_file_to_column (item_id: ${itemId}, column_id: "${fileColumn}", file: $file) { id } }`);
+      form.append('map', JSON.stringify({ image: 'variables.file' }));
+      form.append('image', new Blob([buffer], { type: f.type || 'application/octet-stream' }), f.name || 'upload');
+      const resp = await fetch(`${MONDAY_API_URL}/file`, {
+        method: 'POST',
+        headers: { Authorization: token, 'API-Version': MONDAY_API_VERSION },
+        body: form,
+      });
+      const json = await resp.json();
+      results.push({ name: f.name, ok: !json.errors, error: json.errors ? json.errors.map((e) => e.message).join('; ') : null });
+    } catch (e) {
+      results.push({ name: f && f.name, ok: false, error: e.message });
+    }
+  }
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -443,6 +472,14 @@ async function createRoutedRequest({ category, fields }) {
     itemName: item.name,
     url: itemUrl(cfg.boardId, item.id),
   };
+
+  // Attach uploaded reference files (best-effort; currently Creative only).
+  if (cfg.fileColumn && fields && Array.isArray(fields.files) && fields.files.length) {
+    const up = await uploadFilesToItem(item.id, cfg.fileColumn, fields.files);
+    result.filesAttached = up.filter((r) => r.ok).length;
+    const failed = up.filter((r) => !r.ok);
+    if (failed.length) result.fileErrors = failed.map((f) => `${f.name}: ${f.error}`);
+  }
 
   // Best-effort confirmation email — never block or fail the submission on it.
   const emailOutcome = await maybeSendConfirmation(category, cfg, fields || {}, item);

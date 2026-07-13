@@ -4,166 +4,188 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Request Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --peach: #ffe5cb;
-    --peach-deep: #ffd4ac;
-    --cream: #fff9f3;
-    --ink: #2c2419;
-    --muted: #8a7c6a;
-    --line: #efe2d3;
+    --cream: #fbf8f0;
+    --cream-2: #f5f0e4;
+    --ink: #092e36;
+    --ink-80: rgba(9, 46, 54, 0.8);
+    --muted: #6d7a77;
+    --line: rgba(9, 46, 54, 0.12);
+    --line-2: rgba(9, 46, 54, 0.08);
     --card: #ffffff;
-    --accent: #e8875a;
-    --accent-deep: #d06f42;
-    --green: #2e9e6b;
-    --blue: #3d7ec4;
-    --purple: #8a63c9;
-    --gray: #9aa0a6;
-    --shadow: 0 1px 3px rgba(80, 60, 40, 0.08), 0 6px 20px rgba(80, 60, 40, 0.06);
-    --radius: 14px;
+    --gold: #f2a81d;
+    --gold-deep: #d9930b;
+    --green: #1f8a5b;
+    --green-bg: #e4f1e9;
+    --blue: #2f6fb0;
+    --blue-bg: #e5eef7;
+    --purple: #7a52b3;
+    --purple-bg: #eee7f7;
+    --red: #c0392b;
+    --gray: #8b938f;
+    --gray-bg: #eeeae0;
+    --radius: 10px;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: "Inter", -apple-system, system-ui, sans-serif;
     color: var(--ink);
-    background: linear-gradient(180deg, var(--peach) 0%, var(--cream) 260px, var(--cream) 100%);
-    min-height: 100vh;
+    background: var(--cream);
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1160px; margin: 0 auto; padding: 28px 24px 64px; }
-  header.app { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
-  .logo {
-    width: 42px; height: 42px; border-radius: 12px; flex: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 20px;
-    box-shadow: var(--shadow);
-  }
-  header.app h1 { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
-  header.app p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 30px 26px 72px; }
 
-  nav.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 20px; }
+  /* Brand */
+  header.app { margin-bottom: 22px; }
+  .brand-mark {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--gold); line-height: 1;
+  }
+  .brand-sub {
+    margin-top: 7px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  /* Tabs */
+  nav.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 26px; }
   nav.tabs button {
-    border: 1px solid transparent; background: rgba(255,255,255,0.55); color: var(--ink);
-    padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer;
-    transition: all .15s ease;
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    padding: 8px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all .15s ease;
   }
-  nav.tabs button:hover { background: #fff; }
-  nav.tabs button.active { background: var(--ink); color: var(--peach); }
+  nav.tabs button:hover { background: var(--cream-2); }
+  nav.tabs button.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
 
-  .panel { display: none; animation: fade .25s ease; }
-  .panel.active { display: block; }
-  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
   /* KPI cards */
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   .kpi {
-    background: var(--card); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow);
-    border: 1px solid var(--line); position: relative; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px;
   }
-  .kpi .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-  .kpi .k-label { font-size: 13px; color: var(--muted); font-weight: 600; }
-  .kpi .k-num { font-size: 36px; font-weight: 800; margin-top: 6px; letter-spacing: -0.03em; }
+  .kpi .k-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .kpi .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .kpi .k-num { font-size: 38px; font-weight: 800; margin-top: 10px; letter-spacing: -0.03em; color: var(--ink); line-height: 1; }
   .kpi.active .dot { background: var(--gray); }
   .kpi.review .dot { background: var(--purple); }
   .kpi.progress .dot { background: var(--blue); }
   .kpi.completed .dot { background: var(--green); }
 
-  .section-title { font-size: 15px; font-weight: 700; margin: 30px 0 12px; display:flex; align-items:center; gap:8px; }
-  .card {
-    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-    border: 1px solid var(--line); overflow: hidden;
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin: 32px 0 12px;
   }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 
   /* Recent feed */
   .feed-row {
-    display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-top: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-top: 1px solid var(--line-2);
     text-decoration: none; color: inherit; transition: background .12s ease;
   }
   .feed-row:first-child { border-top: none; }
   .feed-row:hover { background: var(--cream); }
-  .feed-row .pill { flex: none; }
   .feed-row .f-name { font-weight: 600; font-size: 14px; }
-  .feed-row .f-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .feed-row .f-meta { margin-top: 3px; }
   .feed-row .f-when { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
 
-  .pill {
-    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
-    background: var(--peach); color: var(--accent-deep);
+  .tag {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase; background: var(--cream-2); color: var(--ink-80);
+    border: 1px solid var(--line-2); flex: none;
   }
   .status-pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 
+  /* Category picker */
+  .cat-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .cat-picker button {
+    border: 1px solid var(--line); background: var(--card); border-radius: var(--radius); padding: 16px 10px;
+    cursor: pointer; font-weight: 700; font-size: 14px; color: var(--ink); font-family: inherit;
+    letter-spacing: 0.01em; transition: all .15s ease;
+  }
+  .cat-picker button:hover { border-color: var(--gold); }
+  .cat-picker button.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
   /* Form */
-  .form-card { padding: 22px; }
-  .field { margin-bottom: 16px; }
-  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .field .req { color: var(--accent-deep); }
+  .form-card { padding: 24px; }
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 7px; color: var(--ink-80);
+  }
+  .field .req { color: var(--gold-deep); }
   .field input, .field select, .field textarea {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px;
+    width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
     background: #fff; color: var(--ink); font-family: inherit;
   }
-  .field textarea { min-height: 84px; resize: vertical; }
+  .field textarea { min-height: 92px; resize: vertical; }
   .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,135,90,0.15);
+    outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(242, 168, 29, 0.16);
   }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-  .btn {
-    background: var(--accent); color: #fff; border: none; padding: 11px 22px; border-radius: 10px;
-    font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s ease;
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check {
+    display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; user-select: none; background: #fff;
   }
-  .btn:hover { background: var(--accent-deep); }
-  .btn:disabled { opacity: .55; cursor: default; }
-  .btn.secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
-  .btn.secondary:hover { background: var(--cream); }
+  .check input { width: auto; margin: 0; accent-color: var(--gold-deep); }
+  .check:has(input:checked) { border-color: var(--gold); background: #fffaf0; }
 
-  .cat-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 8px; }
-  .cat-picker button {
-    border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 14px 8px; cursor: pointer;
-    font-weight: 600; font-size: 14px; transition: all .15s ease;
+  .btn {
+    background: var(--ink); color: var(--cream); border: none; padding: 12px 24px; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s ease;
   }
-  .cat-picker button:hover { border-color: var(--accent); }
-  .cat-picker button.active { background: var(--ink); color: var(--peach); border-color: var(--ink); }
-  .cat-emoji { display:block; font-size: 22px; margin-bottom: 6px; }
+  .btn:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  .btn.secondary:hover { background: var(--cream-2); opacity: 1; }
 
   /* Tables */
+  .subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .subnav button {
+    border: 1px solid var(--line); background: #fff; padding: 7px 15px; border-radius: 999px; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: var(--ink); font-family: inherit;
+  }
+  .subnav button.active { background: var(--gold); color: var(--ink); border-color: var(--gold); }
   .table-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
   .table-controls input[type=search], .table-controls select {
-    padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; background: #fff;
+    padding: 10px 13px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: #fff;
+    font-family: inherit; color: var(--ink);
   }
-  .table-controls input[type=search] { flex: 1; min-width: 200px; }
+  .table-controls input[type=search] { flex: 1; min-width: 220px; }
   table { width: 100%; border-collapse: collapse; }
   thead th {
-    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
-    padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: var(--cream);
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+    padding: 13px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: var(--cream);
   }
-  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--line-2); font-size: 14px; vertical-align: top; }
   tbody tr:hover { background: var(--cream); }
-  tbody td a { color: var(--accent-deep); text-decoration: none; font-weight: 600; }
-  tbody td a:hover { text-decoration: underline; }
+  tbody td a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  tbody td a:hover { color: var(--gold-deep); text-decoration: underline; }
   .load-more-wrap { padding: 16px; text-align: center; }
 
   .toast {
     position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
-    background: var(--ink); color: #fff; padding: 13px 22px; border-radius: 12px; font-size: 14px; font-weight: 600;
-    box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; max-width: 90vw;
+    background: var(--ink); color: var(--cream); padding: 13px 22px; border-radius: 10px; font-size: 14px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; max-width: 90vw;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.error { background: #b23a2e; }
+  .toast.error { background: var(--red); }
 
   .empty, .loading { color: var(--muted); font-size: 14px; padding: 28px 18px; text-align: center; }
-  .subnav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-  .subnav button {
-    border: 1px solid var(--line); background: #fff; padding: 7px 14px; border-radius: 999px; cursor: pointer;
-    font-size: 13px; font-weight: 600; color: var(--ink);
-  }
-  .subnav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-  .skeleton { background: linear-gradient(90deg, #f3ece3 25%, #faf4ec 50%, #f3ece3 75%); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 6px; height: 14px; }
-  @keyframes sk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
   @media (max-width: 780px) {
     .kpis { grid-template-columns: repeat(2, 1fr); }
-    .cat-picker { grid-template-columns: repeat(3, 1fr); }
+    .cat-picker { grid-template-columns: repeat(2, 1fr); }
     .grid2 { grid-template-columns: 1fr; }
   }
 </style>
@@ -171,11 +193,8 @@
 <body>
 <div class="wrap">
   <header class="app">
-    <div class="logo">R</div>
-    <div>
-      <h1>Request Hub</h1>
-      <p>Route requests, organize work.</p>
-    </div>
+    <div class="brand-mark">Request Hub</div>
+    <div class="brand-sub">Lemonade Hospitality · Route requests, organize work</div>
   </header>
 
   <nav class="tabs">
@@ -186,13 +205,12 @@
 
   <!-- DASHBOARD -->
   <section class="panel active" id="panel-dashboard">
-    <div class="kpis" id="kpis">
+    <div class="kpis">
       <div class="kpi active"><div class="k-label"><span class="dot"></span>Active</div><div class="k-num" id="kpi-active">—</div></div>
       <div class="kpi review"><div class="k-label"><span class="dot"></span>In Review</div><div class="k-num" id="kpi-review">—</div></div>
       <div class="kpi progress"><div class="k-label"><span class="dot"></span>In Progress</div><div class="k-num" id="kpi-progress">—</div></div>
       <div class="kpi completed"><div class="k-label"><span class="dot"></span>Completed</div><div class="k-num" id="kpi-completed">—</div></div>
     </div>
-
     <div class="section-title">Recent submissions</div>
     <div class="card" id="feed"><div class="loading">Loading recent submissions…</div></div>
   </section>
@@ -229,30 +247,29 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ---------------------------------------------------------------------------
-// Client config. Field definitions mirror the server's board map so the
-// dynamic form renders the right inputs per category. The server is the
-// authority on routing + column IDs; the client only needs field keys + labels.
-// ---------------------------------------------------------------------------
 const API = '/api/monday';
 
+// Field definitions mirror the server's board map. Field types: text, email,
+// date, number, select, textarea, multiselect. `showIf` makes a field
+// conditional on another field's value. `full` spans both columns.
 const CATEGORIES = {
   procurement: {
-    label: 'Procurement', emoji: '📦',
+    label: 'Procurement',
     fields: [
       { key: 'name', label: 'Request Title', type: 'text', required: true },
-      { key: 'requestType', label: 'Request Type', type: 'select', options: ['Apparel','Supplies','Equipment','Marketing Materials','Other'] },
-      { key: 'department', label: 'Department', type: 'select', options: ['Maintenance','Front Desk','Food & Beverage','Housekeeping','Security','Spa'] },
-      { key: 'priority', label: 'Priority', type: 'select', options: ['Low','Medium','High'] },
-      { key: 'requesterName', label: 'Requester Name', type: 'text' },
-      { key: 'requesterEmail', label: 'Requester Email', type: 'email' },
+      { key: 'requestType', label: 'Request Type', type: 'select', options: ['General Procurement','Uniform Request'] },
+      { key: 'department', label: 'Department', type: 'text' },
+      { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
+      { key: 'quantity', label: 'Quantity', type: 'number' },
+      { key: 'vendor', label: 'Vendor', type: 'text' },
+      { key: 'budget', label: 'Budget', type: 'text' },
+      { key: 'deliveryLocation', label: 'Delivery Location', type: 'text' },
       { key: 'dueDate', label: 'Due Date', type: 'date' },
-      { key: 'budget', label: 'Budget ($)', type: 'number' },
-      { key: 'description', label: 'Description', type: 'textarea', full: true },
+      { key: 'notes', label: 'Notes', type: 'textarea', full: true },
     ],
   },
   uniform: {
-    label: 'Uniform', emoji: '👔',
+    label: 'Uniform',
     fields: [
       { key: 'name', label: 'Request Title', type: 'text', required: true },
       { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
@@ -265,7 +282,7 @@ const CATEGORIES = {
     ],
   },
   creative: {
-    label: 'Creative', emoji: '🎨',
+    label: 'Creative',
     fields: [
       { key: 'name', label: 'Project Name', type: 'text', required: true },
       { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
@@ -275,88 +292,69 @@ const CATEGORIES = {
       { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
     ],
   },
-  event: {
-    label: 'Event', emoji: '🎪',
+  print: {
+    label: 'Print',
+    autoName: true, // no title field; name is generated on submit
     fields: [
-      { key: 'name', label: 'Event Name', type: 'text', required: true },
-      { key: 'requestType', label: 'Request Type', type: 'select', options: ['Conference','Webinar','Workshop','Trade Show','Internal Event','Sponsorship','Other'] },
-      { key: 'priority', label: 'Priority', type: 'select', options: ['Low','Medium','High','Urgent'] },
+      { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
+      { key: 'outlets', label: 'Which outlet(s)? (select all that apply)', type: 'multiselect',
+        options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'],
+        showIf: { field: 'printType', equals: 'Menus' }, required: true },
+      { key: 'details', label: 'What do you need printed?', type: 'textarea', full: true,
+        showIf: { field: 'printType', equals: 'Other' }, required: true },
+      { key: 'quantity', label: 'Quantity needed', type: 'number', required: true },
       { key: 'requesterName', label: 'Requester Name', type: 'text' },
       { key: 'requesterEmail', label: 'Requester Email', type: 'email' },
-      { key: 'dueDate', label: 'Due Date', type: 'date' },
-      { key: 'budget', label: 'Budget ($)', type: 'number' },
-      { key: 'description', label: 'Description', type: 'textarea', full: true },
-    ],
-  },
-  design: {
-    label: 'Design', emoji: '✏️',
-    fields: [
-      { key: 'name', label: 'Request Title', type: 'text', required: true },
-      { key: 'requestType', label: 'Request Type', type: 'select', options: ['Logo','Brand Assets','Print Materials','Digital Graphics','Video','Other'] },
-      { key: 'priority', label: 'Priority', type: 'select', options: ['Low','Medium','High','Urgent'] },
-      { key: 'requesterName', label: 'Requester Name', type: 'text' },
-      { key: 'requesterEmail', label: 'Requester Email', type: 'email' },
-      { key: 'dueDate', label: 'Due Date', type: 'date' },
-      { key: 'budget', label: 'Budget ($)', type: 'number' },
-      { key: 'description', label: 'Description', type: 'textarea', full: true },
+      { key: 'neededBy', label: 'Needed By', type: 'date' },
     ],
   },
 };
 
-// Human labels for the column IDs returned in tracking tables.
+// Human labels for the tracking-table column IDs.
 const COLUMN_LABELS = {
-  color_mm1gjsqg: 'Status', dropdown_mm57trse: 'Request Type', color_mm1gy17s: 'Department',
-  color_mm1gfcfb: 'Priority', date_mm57f4s6: 'Due Date', numeric_mm57r30c: 'Budget',
+  // procurement (18415967514)
+  color_mm3ym1pj: 'Status', color_mm3yp1gc: 'Request Type', text_mm3ytbvq: 'Department',
+  numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
+  // uniform
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', text_mm3yghj8: 'Department/Role',
   numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
-  status8: 'Status', dropdown_mkpwtq12: 'Content Type', text_mkpw8xrc: 'Department/Outlet', date_mkpwatyw: 'Ideal Due Date',
-  color_mm57kea7: 'Status', dropdown_mm57d6ce: 'Request Type', color_mm57bde7: 'Priority', date_mm57gw1w: 'Due Date', numeric_mm57k2sz: 'Budget',
-  color_mm57t0bg: 'Status', dropdown_mm57kttm: 'Request Type', color_mm577rx0: 'Priority', date_mm57mnp: 'Due Date', numeric_mm57wgvs: 'Budget',
+  // creative (18421786819)
+  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', text_mm57mzz2: 'Department/Outlet', date_mm57j8b: 'Ideal Due Date',
+  // print (18421786829)
+  color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57yjtk: 'Outlet(s)',
+  numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
 };
 
-// Status options per category for the tracking filter dropdown.
 const STATUS_OPTIONS = {
-  procurement: ['New','Under Review','Approved','Ordered','Received','Rejected'],
+  procurement: ['New Request','Awaiting Design','Ready to Order','Ordered','In Transit','Delivered'],
   uniform: ['New Request','Sourcing','Ordered','In Transit','Delivered'],
-  creative: ['New','Working On It','Pending review','Completed/Live','Stuck','Move to DAM'],
-  event: ['New Request','In Review','In Progress','On Hold','Completed','Cancelled'],
-  design: ['New Request','In Review','In Progress','On Hold','Completed','Cancelled'],
+  creative: ['New','Working On It','Pending Review','Completed','Stuck'],
+  print: ['New','In Progress','Printed'],
 };
 
 function statusColor(label) {
   const s = (label || '').toLowerCase();
   if (/(cancel|reject|stuck)/.test(s)) return { bg:'#fbe3e0', fg:'#b23a2e' };
-  if (/(complete|received|delivered|live|done)/.test(s)) return { bg:'#e2f3ea', fg:'#2e7d51' };
-  if (/(review|pending)/.test(s)) return { bg:'#efe6fa', fg:'#6f4bb0' };
-  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'#e4eefb', fg:'#356bb0' };
-  return { bg:'#fff0e2', fg:'#c06a3d' }; // new / active
+  if (/(complete|received|delivered|printed|live|done)/.test(s)) return { bg:'var(--green-bg)', fg:'var(--green)' };
+  if (/(review|pending)/.test(s)) return { bg:'var(--purple-bg)', fg:'var(--purple)' };
+  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'var(--blue-bg)', fg:'var(--blue)' };
+  return { bg:'var(--gray-bg)', fg:'#6a6252' }; // new / active
 }
 
-// ---------------------------------------------------------------------------
-// API helper
-// ---------------------------------------------------------------------------
 async function callApi(payload) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const json = await res.json().catch(() => ({ ok:false, error:'Bad response from server.' }));
   if (!res.ok || json.ok === false) throw new Error(json.error || ('Request failed ('+res.status+').'));
   return json;
 }
-
 function toast(msg, isError) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isError ? ' error' : '');
-  setTimeout(() => { t.className = 'toast'; }, 3800);
+  t.textContent = msg; t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'toast'; }, 4000);
 }
-
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function fmtWhen(iso) {
-  if (!iso) return '';
-  const d = new Date(iso); if (isNaN(d)) return '';
+  if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return '';
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'just now';
   if (diff < 3600) return Math.floor(diff/60) + 'm ago';
@@ -365,9 +363,7 @@ function fmtWhen(iso) {
   return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
 }
 
-// ---------------------------------------------------------------------------
 // Tabs
-// ---------------------------------------------------------------------------
 document.querySelectorAll('nav.tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
@@ -379,9 +375,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Dashboard
-// ---------------------------------------------------------------------------
 async function loadDashboard() {
   const feed = document.getElementById('feed');
   ['active','review','progress','completed'].forEach(k => document.getElementById('kpi-'+k).textContent = '—');
@@ -395,16 +389,13 @@ async function loadDashboard() {
     document.getElementById('kpi-review').textContent = counts.totals.review;
     document.getElementById('kpi-progress').textContent = counts.totals.progress;
     document.getElementById('kpi-completed').textContent = counts.totals.completed;
-
     if (!recent.items.length) { feed.innerHTML = '<div class="empty">No submissions yet.</div>'; return; }
     feed.innerHTML = recent.items.map(it => {
       const c = statusColor(it.status);
       return `<a class="feed-row" href="${esc(it.url)}" target="_blank" rel="noopener">
-        <span class="pill">${esc(it.category)}</span>
-        <span>
-          <span class="f-name">${esc(it.name)}</span>
-          <span class="f-meta">${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}</span>
-        </span>
+        <span class="tag">${esc(it.category)}</span>
+        <span><span class="f-name">${esc(it.name)}</span>
+          <span class="f-meta">${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}</span></span>
         <span class="f-when">${esc(fmtWhen(it.createdAt))}</span>
       </a>`;
     }).join('');
@@ -413,14 +404,12 @@ async function loadDashboard() {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Submit form
-// ---------------------------------------------------------------------------
 let currentCat = 'procurement';
 const catPicker = document.getElementById('cat-picker');
 Object.entries(CATEGORIES).forEach(([key, cfg]) => {
   const b = document.createElement('button');
-  b.innerHTML = '<span class="cat-emoji">'+cfg.emoji+'</span>'+cfg.label;
+  b.textContent = cfg.label;
   b.className = key === currentCat ? 'active' : '';
   b.addEventListener('click', () => { currentCat = key;
     catPicker.querySelectorAll('button').forEach(x => x.classList.remove('active'));
@@ -428,53 +417,112 @@ Object.entries(CATEGORIES).forEach(([key, cfg]) => {
   catPicker.appendChild(b);
 });
 
+function fieldControl(f) {
+  const req = f.required ? ' required' : '';
+  if (f.type === 'select') {
+    return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' +
+      f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
+  }
+  if (f.type === 'multiselect') {
+    return '<div class="checks">' + f.options.map(o =>
+      '<label class="check"><input type="checkbox" name="'+f.key+'" value="'+esc(o)+'" /> '+esc(o)+'</label>'
+    ).join('') + '</div>';
+  }
+  if (f.type === 'textarea') return '<textarea name="'+f.key+'"'+req+'></textarea>';
+  return '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
+}
+
 function renderForm() {
   const cfg = CATEGORIES[currentCat];
   const form = document.getElementById('request-form');
   let html = '<div class="grid2">';
-  cfg.fields.forEach((f, i) => {
-    const full = f.full || f.type === 'textarea';
-    const wrapStyle = full ? ' style="grid-column:1 / -1"' : '';
-    let input;
-    const req = f.required ? ' required' : '';
-    if (f.type === 'select') {
-      input = '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' +
-        f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
-    } else if (f.type === 'textarea') {
-      input = '<textarea name="'+f.key+'"'+req+'></textarea>';
-    } else {
-      input = '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
-    }
-    html += '<div class="field"'+wrapStyle+'><label>'+esc(f.label)+(f.required?' <span class="req">*</span>':'')+'</label>'+input+'</div>';
+  cfg.fields.forEach(f => {
+    const full = f.full || f.type === 'textarea' || f.type === 'multiselect';
+    const wrapStyle = full ? 'grid-column:1 / -1;' : '';
+    const hidden = f.showIf ? 'display:none;' : '';
+    const cond = f.showIf ? ' data-showif-field="'+f.showIf.field+'" data-showif-eq="'+esc(f.showIf.equals)+'"' : '';
+    html += '<div class="field" data-key="'+f.key+'"'+cond+' style="'+wrapStyle+hidden+'">'
+      + '<label>'+esc(f.label)+(f.required?' <span class="req">*</span>':'')+'</label>'
+      + fieldControl(f) + '</div>';
   });
   html += '</div>';
-  html += '<div style="margin-top:8px"><button type="submit" class="btn" id="submit-btn">Submit '+esc(cfg.label)+' Request</button></div>';
+  html += '<div style="margin-top:6px"><button type="submit" class="btn" id="submit-btn">Submit '+esc(cfg.label)+' Request</button></div>';
   form.innerHTML = html;
+
+  // Wire conditional visibility off any controlling <select>.
+  form.querySelectorAll('select[name]').forEach(sel => sel.addEventListener('change', applyConditions));
+  applyConditions();
+}
+
+function applyConditions() {
+  const form = document.getElementById('request-form');
+  form.querySelectorAll('.field[data-showif-field]').forEach(el => {
+    const ctrlName = el.getAttribute('data-showif-field');
+    const eq = el.getAttribute('data-showif-eq');
+    const ctrl = form.querySelector('[name="'+ctrlName+'"]');
+    const show = ctrl && ctrl.value === eq;
+    el.style.display = show ? '' : 'none';
+  });
+}
+
+function buildPrintName(fields) {
+  if (fields.printType === 'Menus') {
+    const o = Array.isArray(fields.outlets) ? fields.outlets : (fields.outlets ? [fields.outlets] : []);
+    return o.length ? 'Menus — ' + o.join(', ') : 'Menu print request';
+  }
+  if (fields.printType === 'Other') {
+    const d = (fields.details || '').trim();
+    return d ? (d.length > 60 ? d.slice(0, 60) + '…' : d) : 'Print request';
+  }
+  return 'Print request';
 }
 
 document.getElementById('request-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const btn = document.getElementById('submit-btn');
+  const form = e.target;
   const cfg = CATEGORIES[currentCat];
+  const btn = document.getElementById('submit-btn');
+
+  // Gather values only from currently-visible fields.
   const fields = {};
-  new FormData(e.target).forEach((v, k) => { if (String(v).trim() !== '') fields[k] = v; });
+  cfg.fields.forEach(f => {
+    const wrap = form.querySelector('.field[data-key="'+f.key+'"]');
+    if (!wrap || wrap.style.display === 'none') return;
+    if (f.type === 'multiselect') {
+      const vals = [...wrap.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+      if (vals.length) fields[f.key] = vals;
+    } else {
+      const el = wrap.querySelector('[name="'+f.key+'"]');
+      if (el && String(el.value).trim() !== '') fields[f.key] = el.value;
+    }
+  });
+
+  // Validate required visible fields.
+  for (const f of cfg.fields) {
+    const wrap = form.querySelector('.field[data-key="'+f.key+'"]');
+    if (!wrap || wrap.style.display === 'none') continue;
+    if (f.required && (fields[f.key] === undefined || (Array.isArray(fields[f.key]) && !fields[f.key].length))) {
+      toast('Please complete: ' + f.label, true); return;
+    }
+  }
+
+  if (cfg.autoName && !fields.name) fields.name = buildPrintName(fields);
   if (!fields.name) { toast('Please add a title.', true); return; }
+
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     const res = await callApi({ action: 'create-routed-request', category: currentCat, fields });
     toast('Sent to ' + res.board + ' → ' + res.itemName);
-    e.target.reset();
     renderForm();
   } catch (err) {
     toast('Submit failed: ' + err.message, true);
   } finally {
-    btn.disabled = false; btn.textContent = 'Submit ' + cfg.label + ' Request';
+    const b = document.getElementById('submit-btn');
+    if (b) { b.disabled = false; b.textContent = 'Submit ' + cfg.label + ' Request'; }
   }
 });
 
-// ---------------------------------------------------------------------------
-// Track tables (search + filter + load more)
-// ---------------------------------------------------------------------------
+// Track tables
 let currentTrackCat = 'procurement';
 let trackCursor = null;
 let trackLoadedFilter = { search:'', status:'' };
@@ -482,7 +530,7 @@ let trackLoadedFilter = { search:'', status:'' };
 const trackSubnav = document.getElementById('track-subnav');
 Object.entries(CATEGORIES).forEach(([key, cfg]) => {
   const b = document.createElement('button');
-  b.textContent = cfg.emoji + ' ' + cfg.label;
+  b.textContent = cfg.label;
   b.className = key === currentTrackCat ? 'active' : '';
   b.addEventListener('click', () => {
     currentTrackCat = key;
@@ -498,8 +546,7 @@ Object.entries(CATEGORIES).forEach(([key, cfg]) => {
 document.getElementById('track-refresh').addEventListener('click', () => loadTrack(currentTrackCat, true));
 let searchDebounce;
 document.getElementById('track-search').addEventListener('input', () => {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => loadTrack(currentTrackCat, true), 350);
+  clearTimeout(searchDebounce); searchDebounce = setTimeout(() => loadTrack(currentTrackCat, true), 350);
 });
 document.getElementById('track-status').addEventListener('change', () => loadTrack(currentTrackCat, true));
 document.getElementById('track-loadmore').addEventListener('click', () => loadTrack(currentTrackCat, false));
@@ -518,32 +565,24 @@ async function loadTrack(cat, reset) {
   const status = document.getElementById('track-status').value.trim();
 
   if (reset) {
-    trackCursor = null;
-    trackLoadedFilter = { search, status };
+    trackCursor = null; trackLoadedFilter = { search, status };
     buildStatusFilter(cat);
-    // header uses the previous known columns until data arrives
     tbody.innerHTML = '<tr><td colspan="6"><div class="loading">Loading…</div></td></tr>';
     lmWrap.style.display = 'none';
   }
-
   try {
     const res = await callApi({
-      action: 'list-board-items',
-      category: cat,
+      action: 'list-board-items', category: cat,
       search: trackLoadedFilter.search || undefined,
       status: trackLoadedFilter.status || undefined,
-      cursor: reset ? undefined : trackCursor,
-      limit: 25,
+      cursor: reset ? undefined : trackCursor, limit: 25,
     });
-
-    // Header
     const cols = res.columns;
     thead.innerHTML = '<tr><th>Name</th>' + cols.map(c => '<th>'+esc(COLUMN_LABELS[c] || c)+'</th>').join('') + '</tr>';
-
     const rowsHtml = res.items.map(it => {
       const tds = cols.map(c => {
         const val = it.columns[c] || '';
-        if (COLUMN_LABELS[c] === 'Status' || c === res.statusColumn) {
+        if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') {
           if (!val) return '<td></td>';
           const col = statusColor(val);
           return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>';
@@ -552,13 +591,11 @@ async function loadTrack(cat, reset) {
       }).join('');
       return '<tr><td><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a></td>'+tds+'</tr>';
     }).join('');
-
     if (reset) {
       tbody.innerHTML = rowsHtml || '<tr><td colspan="'+(cols.length+1)+'"><div class="empty">No matching requests.</div></td></tr>';
     } else {
       tbody.insertAdjacentHTML('beforeend', rowsHtml);
     }
-
     trackCursor = res.nextCursor;
     lmWrap.style.display = res.hasMore ? 'block' : 'none';
   } catch (e) {
@@ -567,9 +604,7 @@ async function loadTrack(cat, reset) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Init
-// ---------------------------------------------------------------------------
 renderForm();
 loadDashboard();
 </script>

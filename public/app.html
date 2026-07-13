@@ -272,6 +272,7 @@ const CATEGORIES = {
     { key: 'budget', label: 'Budget', type: 'text' },
     { key: 'dueDate', label: 'Due Date', type: 'date' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'notes', label: 'Notes', type: 'textarea', full: true },
   ] },
   uniform: { label: 'Uniform', fields: [
@@ -281,6 +282,7 @@ const CATEGORIES = {
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'dueDate', label: 'Due Date', type: 'date' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'sizeRequirements', label: 'Size Requirements', type: 'textarea', full: true },
     { key: 'requirements', label: 'Specific Requirements (colors, styles, branding)', type: 'textarea', full: true },
     { key: 'notes', label: 'Notes', type: 'textarea', full: true },
@@ -290,6 +292,7 @@ const CATEGORIES = {
     { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
     { key: 'departmentOutlet', label: 'Department or Outlet', type: 'text' },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
+    { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date' },
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
     { key: 'referenceLinks', label: 'Reference Links (paste URLs, one per line — best for large files)', type: 'textarea', full: true },
@@ -303,6 +306,7 @@ const CATEGORIES = {
     { key: 'quantity', label: 'Quantity needed', type: 'number', showIf: { field: 'printType', equals: 'Other' }, required: true },
     { key: 'requesterName', label: 'Requester Name', type: 'text' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'neededBy', label: 'Needed By', type: 'date' },
   ] },
 };
@@ -476,7 +480,8 @@ function renderForm() {
   form.innerHTML = html;
   // Requesters file as themselves: lock the email field to their sign-in email.
   if (ROLE === 'requester') {
-    form.querySelectorAll('input[type=email]').forEach((inp) => {
+    // Lock only the requester's OWN email to their sign-in; leave "Also Notify" editable.
+    form.querySelectorAll('input[type=email]:not([name="ccEmail"])').forEach((inp) => {
       inp.value = getEmail(); inp.readOnly = true; inp.style.background = 'var(--foam-2)';
       inp.title = 'Signed in as ' + getEmail();
     });

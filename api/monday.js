@@ -22,22 +22,22 @@ const ACCOUNT_SLUG = 'hbcapital'; // used to build item deep-links
 const BOARDS = {
   procurement: {
     label: 'Procurement',
-    boardId: 18404162829,
+    boardId: 18415967514,
     group: null,
-    statusColumn: 'color_mm1gjsqg',
-    defaultStatus: 'New',
-    // columns shown in the tracking table (order matters)
-    tableColumns: ['color_mm1gjsqg', 'dropdown_mm57trse', 'color_mm1gy17s', 'color_mm1gfcfb', 'date_mm57f4s6', 'numeric_mm57r30c'],
+    statusColumn: 'color_mm3ym1pj',
+    defaultStatus: 'New Request',
+    tableColumns: ['color_mm3ym1pj', 'color_mm3yp1gc', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
-      { key: 'requestType', column: 'dropdown_mm57trse', kind: 'dropdown' },
-      { key: 'department', column: 'color_mm1gy17s', kind: 'status' },
-      { key: 'description', column: 'long_text_mm579pwz', kind: 'long_text' },
-      { key: 'requesterName', column: 'text_mm57fsqc', kind: 'text' },
-      { key: 'requesterEmail', column: 'email_mm57v4ag', kind: 'email' },
-      { key: 'dueDate', column: 'date_mm57f4s6', kind: 'date' },
-      { key: 'priority', column: 'color_mm1gfcfb', kind: 'status' },
-      { key: 'budget', column: 'numeric_mm57r30c', kind: 'numbers' },
+      { key: 'requestType', column: 'color_mm3yp1gc', kind: 'status' },       // General Procurement / Uniform Request
+      { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
+      { key: 'itemDescription', column: 'text_mm3y2353', kind: 'text' },
+      { key: 'quantity', column: 'numeric_mm3yee8z', kind: 'numbers' },
+      { key: 'vendor', column: 'text_mm3yng56', kind: 'text' },
+      { key: 'budget', column: 'text_mm3ypbsb', kind: 'text' },               // Budget is a TEXT column on this board
+      { key: 'deliveryLocation', column: 'text_mm3yv10f', kind: 'text' },
+      { key: 'dueDate', column: 'date_mm3yn5hj', kind: 'date' },
+      { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },
   uniform: {
@@ -60,62 +60,44 @@ const BOARDS = {
   },
   creative: {
     label: 'Creative',
-    boardId: 8723326529,
-    group: 'group_mm1cyers',
-    statusColumn: 'status8',
+    boardId: 18421786819, // "creative request new"
+    group: null,
+    statusColumn: 'color_mm57d4mj',
     defaultStatus: 'New',
-    tableColumns: ['status8', 'dropdown_mkpwtq12', 'text_mkpw8xrc', 'date_mkpwatyw'],
+    tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'text_mm57mzz2', 'date_mm57j8b'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
-      { key: 'contentType', column: 'dropdown_mkpwtq12', kind: 'dropdown' },
-      { key: 'departmentOutlet', column: 'text_mkpw8xrc', kind: 'text' },
-      { key: 'projectDescription', column: 'long_text_mkpw4qsm', kind: 'long_text' },
-      { key: 'email', column: 'email_mkpwc949', kind: 'email' },
-      { key: 'idealDueDate', column: 'date_mkpwatyw', kind: 'date' },
+      { key: 'contentType', column: 'dropdown_mm57r0h9', kind: 'dropdown' },
+      { key: 'departmentOutlet', column: 'text_mm57mzz2', kind: 'text' },
+      { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
+      { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
+      { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
     ],
   },
-  event: {
-    label: 'Event',
-    boardId: 18421737613,
+  print: {
+    label: 'Print',
+    boardId: 18421786829, // "Print Requests"
     group: null,
-    statusColumn: 'color_mm57kea7',
-    defaultStatus: 'New Request',
-    tableColumns: ['color_mm57kea7', 'dropdown_mm57d6ce', 'color_mm57bde7', 'date_mm57gw1w', 'numeric_mm57k2sz'],
+    statusColumn: 'color_mm57d28j',
+    defaultStatus: 'New',
+    tableColumns: ['color_mm57d28j', 'color_mm57egma', 'dropdown_mm57yjtk', 'numeric_mm57rqaq', 'date_mm57f4h4'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
-      { key: 'requestType', column: 'dropdown_mm57d6ce', kind: 'dropdown' },
-      { key: 'description', column: 'long_text_mm57vz1t', kind: 'long_text' },
-      { key: 'requesterName', column: 'text_mm57qjrq', kind: 'text' },
-      { key: 'requesterEmail', column: 'email_mm578v57', kind: 'email' },
-      { key: 'dueDate', column: 'date_mm57gw1w', kind: 'date' },
-      { key: 'priority', column: 'color_mm57bde7', kind: 'status' },
-      { key: 'budget', column: 'numeric_mm57k2sz', kind: 'numbers' },
-    ],
-  },
-  design: {
-    label: 'Design',
-    boardId: 18421737614,
-    group: null,
-    statusColumn: 'color_mm57t0bg',
-    defaultStatus: 'New Request',
-    tableColumns: ['color_mm57t0bg', 'dropdown_mm57kttm', 'color_mm577rx0', 'date_mm57mnp', 'numeric_mm57wgvs'],
-    fields: [
-      { key: 'name', column: 'name', kind: 'name' },
-      { key: 'requestType', column: 'dropdown_mm57kttm', kind: 'dropdown' },
-      { key: 'description', column: 'long_text_mm5758fn', kind: 'long_text' },
-      { key: 'requesterName', column: 'text_mm57p77q', kind: 'text' },
-      { key: 'requesterEmail', column: 'email_mm576xwj', kind: 'email' },
-      { key: 'dueDate', column: 'date_mm57mnp', kind: 'date' },
-      { key: 'priority', column: 'color_mm577rx0', kind: 'status' },
-      { key: 'budget', column: 'numeric_mm57wgvs', kind: 'numbers' },
+      { key: 'printType', column: 'color_mm57egma', kind: 'status' },         // Menus / Other
+      { key: 'outlets', column: 'dropdown_mm57yjtk', kind: 'dropdown' },      // multi-select
+      { key: 'details', column: 'long_text_mm57nbb6', kind: 'long_text' },    // used when printType = Other
+      { key: 'quantity', column: 'numeric_mm57rqaq', kind: 'numbers' },
+      { key: 'requesterName', column: 'text_mm57zdjb', kind: 'text' },
+      { key: 'requesterEmail', column: 'email_mm57r2z6', kind: 'email' },
+      { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
   },
 };
 
 // ---------------------------------------------------------------------------
-// KPI bucketing. The five boards use different status vocabularies, so we
-// normalize each status label into one of four dashboard buckets by keyword.
-// Terminal-negative states (cancelled / rejected) are excluded from all cards.
+// KPI bucketing. The boards use different status vocabularies, so we normalize
+// each status label into one of four dashboard buckets by keyword. Terminal-
+// negative states (cancelled / rejected) are excluded from all cards.
 // Adjust the keyword lists here to retune the KPI cards.
 // ---------------------------------------------------------------------------
 const BUCKETS = ['active', 'review', 'progress', 'completed'];
@@ -125,9 +107,9 @@ function bucketForStatus(label) {
   if (!s) return 'active'; // blank status = newly submitted, still active
   if (/(cancel|reject)/.test(s)) return null; // excluded from KPIs
   if (/(review|pending)/.test(s)) return 'review';
-  if (/(complete|received|delivered|live|\bdone\b|move to dam)/.test(s)) return 'completed';
+  if (/(complete|received|delivered|printed|live|\bdone\b|move to dam)/.test(s)) return 'completed';
   if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return 'progress';
-  return 'active'; // new, new request, on hold, stuck, sourcing-adjacent, etc.
+  return 'active'; // new, new request, awaiting, ready to order, on hold, stuck, etc.
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +120,9 @@ function buildColumnValues(cfg, fields) {
   for (const f of cfg.fields) {
     if (f.kind === 'name') continue; // name is passed separately
     const raw = fields[f.key];
-    if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === 'string' && raw.trim() === '') continue;
+    if (Array.isArray(raw) && raw.length === 0) continue;
     switch (f.kind) {
       case 'text':
         cv[f.column] = String(raw);
@@ -167,7 +151,7 @@ function buildColumnValues(cfg, fields) {
         break;
     }
   }
-  // Always set the default status on creation.
+  // Always set the default workflow status on creation.
   cv[cfg.statusColumn] = { label: cfg.defaultStatus };
   return cv;
 }
@@ -241,7 +225,6 @@ async function createRoutedRequest({ category, fields }) {
 }
 
 async function fetchAllStatusValues(cfg) {
-  // Returns array of status label strings for every item on the board.
   const labels = [];
   let cursor = null;
   do {
@@ -333,8 +316,6 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
   const cols = Array.from(new Set([cfg.statusColumn, ...cfg.tableColumns]));
 
-  // Build query_params rules for server-side search/filter (first page only;
-  // Monday's next_items_page carries the original query forward via the cursor).
   const rules = [];
   if (search && search.trim()) {
     rules.push({ column_id: 'name', compare_value: [search.trim()], operator: 'contains_text' });
@@ -349,10 +330,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
       query ($cursor: String!, $cols: [String!], $limit: Int!) {
         next_items_page (cursor: $cursor, limit: $limit) {
           cursor
-          items {
-            id name created_at
-            column_values (ids: $cols) { id text ... on BoardRelationValue { display_value } }
-          }
+          items { id name created_at column_values (ids: $cols) { id text } }
         }
       }`;
     const data = await mondayQuery(query, { cursor, cols, limit });
@@ -364,10 +342,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
         boards (ids: [$boardId]) {
           items_page (limit: $limit, query_params: $qp) {
             cursor
-            items {
-              id name created_at
-              column_values (ids: $cols) { id text }
-            }
+            items { id name created_at column_values (ids: $cols) { id text } }
           }
         }
       }`;
@@ -392,6 +367,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25 }) 
     ok: true,
     category,
     board: cfg.label,
+    statusColumn: cfg.statusColumn,
     columns: cfg.tableColumns,
     items,
     nextCursor: page.cursor || null,
@@ -417,7 +393,6 @@ async function readBody(req) {
   if (typeof req.body === 'string' && req.body) {
     try { return JSON.parse(req.body); } catch { return {}; }
   }
-  // Fallback: read raw stream (defensive; Vercel usually parses JSON already)
   return await new Promise((resolve) => {
     let data = '';
     req.on('data', (c) => (data += c));

@@ -108,6 +108,117 @@ const PRINT_OUTLET_DROPDOWN = 'dropdown_mm57yjtk';
 const PRINT_TOTAL_QTY = 'numeric_mm57rqaq';
 
 // ---------------------------------------------------------------------------
+// Confirmation email (best-effort). If EMAIL_WEBHOOK_URL is set, we POST the
+// message to it after a request is created. Point that env var at a Microsoft
+// Power Automate "When a HTTP request is received" flow whose action sends an
+// Outlook email — so no Outlook credentials ever live in this code. The
+// "expected completion" date is simply the date the requester entered.
+// ---------------------------------------------------------------------------
+const REQUESTED_DATE_FIELD = {
+  procurement: 'dueDate',
+  uniform: 'dueDate',
+  creative: 'idealDueDate',
+  print: 'neededBy',
+};
+
+const EMAIL_LABELS = {
+  name: 'Request', department: 'Department', itemDescription: 'Item / what’s needed',
+  quantity: 'Quantity', vendor: 'Vendor', budget: 'Budget', dueDate: 'Due date', notes: 'Notes',
+  uniformType: 'Uniform type', departmentRole: 'Department / role',
+  requirements: 'Specific requirements', sizeRequirements: 'Size requirements',
+  contentType: 'Content type', departmentOutlet: 'Department / outlet',
+  idealDueDate: 'Ideal due date', projectDescription: 'Project description',
+  printType: 'Type', details: 'Details', neededBy: 'Needed by',
+  requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
+};
+
+function getRequesterEmail(fields) {
+  return String(fields.requesterEmail || fields.email || '').trim();
+}
+
+function prettyDate(ymd) {
+  if (!ymd) return '';
+  const d = new Date(ymd + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return ymd;
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function summarizeFields(fields) {
+  const rows = [];
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null || v === '' || k === 'name' || k === 'title') continue;
+    if (k === 'outletQuantities' && typeof v === 'object') {
+      rows.push(['Menus by outlet', Object.entries(v).map(([o, q]) => `${o}: ${q}`).join(', ')]);
+      continue;
+    }
+    let val = Array.isArray(v) ? v.join(', ') : String(v);
+    if (/date/i.test(k) || k === 'neededBy') val = prettyDate(String(v));
+    rows.push([EMAIL_LABELS[k] || k, val]);
+  }
+  return rows;
+}
+
+function buildEmailSummary(category, cfg, fields, item) {
+  const expected = prettyDate(String(fields[REQUESTED_DATE_FIELD[category]] || ''));
+  const rows = summarizeFields(fields);
+  const subject = `We received your ${cfg.label} request: ${item.name}`;
+
+  const rowsHtml = rows.map(([l, v]) =>
+    `<tr><td style="padding:6px 14px 6px 0;color:#6d7a77;font-size:13px;vertical-align:top;white-space:nowrap">${escapeHtml(l)}</td><td style="padding:6px 0;color:#092e36;font-size:14px">${escapeHtml(v)}</td></tr>`
+  ).join('');
+
+  const expectedBlock = expected
+    ? `<p style="margin:18px 0 0;font-size:14px;color:#092e36"><strong>Expected completion:</strong> ${escapeHtml(expected)}</p>`
+    : `<p style="margin:18px 0 0;font-size:14px;color:#6d7a77">No target date was provided on the request.</p>`;
+
+  const html = `<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;color:#092e36">
+    <h2 style="color:#f2a81d;margin:0 0 4px">Request Hub</h2>
+    <p style="font-size:14px;line-height:1.5">Thanks — we received your <strong>${escapeHtml(cfg.label)}</strong> request. Here's what came through:</p>
+    <p style="font-size:15px;font-weight:700;margin:16px 0 6px">${escapeHtml(item.name)}</p>
+    <table style="border-collapse:collapse">${rowsHtml}</table>
+    ${expectedBlock}
+    <p style="margin:22px 0 0;font-size:12px;color:#6d7a77">You'll be updated as your request progresses.</p>
+  </div>`;
+
+  const text = `Thanks — we received your ${cfg.label} request.\n\n${item.name}\n`
+    + rows.map(([l, v]) => `- ${l}: ${v}`).join('\n')
+    + (expected ? `\n\nExpected completion: ${expected}` : '\n\nNo target date was provided.');
+
+  return { subject, html, text, expected };
+}
+
+async function maybeSendConfirmation(category, cfg, fields, item) {
+  const url = process.env.EMAIL_WEBHOOK_URL;
+  if (!url) return { sent: false, skipped: true };
+  const to = getRequesterEmail(fields);
+  if (!to) return { sent: false, error: 'no requester email on submission' };
+  try {
+    const summary = buildEmailSummary(category, cfg, fields, item);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to,
+        subject: summary.subject,
+        html: summary.html,
+        text: summary.text,
+        category: cfg.label,
+        requestName: item.name,
+        expectedCompletion: summary.expected,
+      }),
+    });
+    if (!resp.ok) return { sent: false, error: `email webhook returned ${resp.status}` };
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, error: e.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // KPI bucketing. The boards use different status vocabularies, so we normalize
 // each status label into one of four dashboard buckets by keyword. Terminal-
 // negative states (cancelled / rejected) are excluded from all cards.
@@ -245,7 +356,7 @@ async function createRoutedRequest({ category, fields }) {
   });
 
   const item = data.create_item;
-  return {
+  const result = {
     ok: true,
     category,
     board: cfg.label,
@@ -254,6 +365,13 @@ async function createRoutedRequest({ category, fields }) {
     itemName: item.name,
     url: itemUrl(cfg.boardId, item.id),
   };
+
+  // Best-effort confirmation email — never block or fail the submission on it.
+  const emailOutcome = await maybeSendConfirmation(category, cfg, fields || {}, item);
+  result.emailSent = Boolean(emailOutcome.sent);
+  if (emailOutcome.error) result.emailError = emailOutcome.error;
+
+  return result;
 }
 
 async function fetchAllStatusValues(cfg) {

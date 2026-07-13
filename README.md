@@ -30,15 +30,26 @@ request-hub/
 
 ## Routing (category → board)
 
-| Category    | Board          | Default status |
-|-------------|----------------|----------------|
-| Procurement | 18404162829    | New            |
-| Uniform     | 18415985409    | New Request    |
-| Creative    | 8723326529 (group `group_mm1cyers`) | New |
-| Event       | 18421737613    | New Request    |
-| Design      | 18421737614    | New Request    |
+| Category    | Board                          | Board ID     | Default status |
+|-------------|--------------------------------|--------------|----------------|
+| Procurement | Procurement Requests           | 18415967514  | New Request    |
+| Uniform     | Uniform Requests               | 18415985409  | New Request    |
+| Creative    | creative request new           | 18421786819  | New            |
+| Print       | Print Requests                 | 18421786829  | New            |
 
-All column IDs are wired in `api/monday.js` under the `BOARDS` map.
+All four boards live in the **Lemonade Hospitality** workspace. The Creative and
+Print boards were created fresh for this app; Procurement and Uniform point at
+existing boards. All column IDs are wired in `api/monday.js` under the `BOARDS`
+map. (The old Event and Design tabs were removed; their Monday boards still
+exist but nothing routes to them.)
+
+### Print tab specifics
+
+The Print form is conditional: choosing **Type = Menus** reveals a multi-select
+of outlets (Julene breakfast, Julene bar, Citrus Shack, Lovebirds, Sandbar) so
+one request can cover several outlets; choosing **Type = Other** reveals a free-
+text "what to print" field instead. Quantity is always required. Since there's no
+title field, the item name is auto-generated (e.g. `Menus — Citrus Shack, Lovebirds`).
 
 ---
 

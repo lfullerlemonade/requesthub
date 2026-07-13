@@ -215,7 +215,11 @@ async function maybeSendConfirmation(category, cfg, fields, item) {
         expectedCompletion: summary.expected,
       }),
     });
-    if (!resp.ok) return { sent: false, error: `email webhook returned ${resp.status}` };
+    if (!resp.ok) {
+      let detail = '';
+      try { detail = (await resp.text() || '').slice(0, 400); } catch (e) { /* ignore */ }
+      return { sent: false, error: `email webhook returned ${resp.status}${detail ? ': ' + detail : ''}` };
+    }
     return { sent: true };
   } catch (e) {
     return { sent: false, error: e.message };

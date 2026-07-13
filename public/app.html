@@ -283,6 +283,8 @@ const CATEGORIES = {
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date' },
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
+    { key: 'referenceLinks', label: 'Reference Links (paste URLs, one per line — best for large files)', type: 'textarea', full: true },
+    { key: 'files', label: 'Reference Files (images or PDFs, ~3 MB total)', type: 'file', full: true },
   ] },
   print: { label: 'Print', autoName: true, fields: [
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
@@ -418,6 +420,7 @@ function fieldControl(f) {
   if (f.type === 'outletqty') return '<div class="outletqty">' + f.options.map(o =>
     '<div class="oq-row"><label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
     + '<input type="number" min="1" step="1" inputmode="numeric" data-oq-qty="'+esc(o)+'" placeholder="Qty" class="oq-qty" /></div>').join('') + '</div>';
+  if (f.type === 'file') return '<input type="file" name="'+f.key+'" multiple />';
   if (f.type === 'textarea') return '<textarea name="'+f.key+'"'+req+'></textarea>';
   return '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
 }
@@ -442,6 +445,14 @@ function applyConditions() {
     el.style.display = (ctrl && ctrl.value === el.getAttribute('data-showif-eq')) ? '' : 'none';
   });
 }
+function readFileB64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => { const s = String(r.result); resolve({ name: file.name, type: file.type, data: s.slice(s.indexOf(',') + 1) }); };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
 function buildPrintName(fields) {
   if (fields.printType === 'Menus') { const oq = fields.outletQuantities || {}; const parts = Object.entries(oq).map(([o,q]) => o + ' ×' + q); return parts.length ? 'Menus — ' + parts.join(', ') : 'Menu print request'; }
   if (fields.printType === 'Other') { const d = (fields.details||'').trim(); return d ? (d.length>60?d.slice(0,60)+'…':d) : 'Print request'; }
@@ -463,6 +474,7 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
         else if (qty !== '' && Number(qty) > 0) oq[outlet] = qty;
       });
       if (Object.keys(oq).length) fields[f.key] = oq;
+    } else if (f.type === 'file') { /* handled after validation (async read) */
     } else { const el = wrap.querySelector('[name="'+f.key+'"]'); if (el && String(el.value).trim() !== '') fields[f.key] = el.value; }
   });
   if (oqError) { toast(oqError, true); return; }
@@ -473,10 +485,22 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   }
   if (cfg.autoName && !fields.name) fields.name = buildPrintName(fields);
   if (!fields.name) { toast('Please add a title.', true); return; }
+
+  // Read any uploaded files to base64, with a size cap (Vercel ~4.5MB request limit).
+  const fileField = cfg.fields.find((f) => f.type === 'file');
+  if (fileField) {
+    const fwrap = form.querySelector('.field[data-key="'+fileField.key+'"]');
+    const input = fwrap ? fwrap.querySelector('input[type=file]') : null;
+    const chosen = input && input.files ? Array.from(input.files) : [];
+    let sum = 0; chosen.forEach((f) => { sum += f.size; });
+    if (sum > 3 * 1024 * 1024) { toast('Attached files total too much (~3 MB max). Use the Reference Links field for large files.', true); return; }
+    if (chosen.length) { btn.disabled = true; btn.textContent = 'Uploading…'; fields.files = await Promise.all(chosen.map(readFileB64)); }
+  }
+
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     const res = await callApi({ action: 'create-routed-request', category: currentCat, fields });
-    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.emailSent ? ' · confirmation emailed' : ''));
+    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.filesAttached ? ' · ' + res.filesAttached + ' file(s) attached' : '') + (res.emailSent ? ' · confirmation emailed' : ''));
     renderForm();
   } catch (err) { toast('Submit failed: ' + err.message, true); }
   finally { const b = document.getElementById('submit-btn'); if (b) { b.disabled = false; b.textContent = 'Submit ' + cfg.label + ' Request'; } }

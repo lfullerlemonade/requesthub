@@ -197,12 +197,12 @@
         <div class="two-col">
           <div class="panel">
             <div class="panel-head"><h3>Open by request type</h3></div>
-            <div class="panel-sub">Where the outstanding work sits</div>
+            <div class="panel-sub" style="margin-left:0">Where the outstanding work sits</div>
             <div id="chart-board" class="barchart"><div class="loading">Loading…</div></div>
           </div>
           <div class="panel">
             <div class="panel-head"><h3>Open by team</h3></div>
-            <div class="panel-sub">Which teams have the most open requests</div>
+            <div class="panel-sub" style="margin-left:0">Which teams have the most open requests</div>
             <div id="chart-team" class="barchart"><div class="loading">Loading…</div></div>
           </div>
         </div>
@@ -282,12 +282,11 @@ function sunMark() {
 }
 const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palette', print: 'printer' };
 
-const TEAMS = ['Sales','Front Office','Rooms','F&B','Marketing','Ownership','Brand'];
+const TEAMS = ['Sales','Front Office','Rooms','F&B','Pool & Beach','Engineering','Marketing','Ownership','Brand'];
 const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'department', label: 'Department', type: 'text' },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
@@ -301,7 +300,6 @@ const CATEGORIES = {
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
-    { key: 'departmentRole', label: 'Department / Role', type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'dueDate', label: 'Due Date', type: 'date', required: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
@@ -314,7 +312,6 @@ const CATEGORIES = {
     { key: 'name', label: 'Project Name', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
-    { key: 'departmentOutlet', label: 'Department or Outlet', type: 'text' },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true },

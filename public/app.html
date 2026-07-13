@@ -69,9 +69,17 @@
   .kpi .k-label { font-size: 14px; font-weight: 600; color: var(--seaweed-70); }
   .kpi .k-num { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 12px 0 6px; line-height: 1; color: var(--seaweed); }
   .kpi .k-foot { font-size: 12.5px; color: var(--muted); }
-  .kpi.review .k-num { color: var(--ocean); }
-  .kpi.progress .k-num { color: var(--pool); }
+  .kpi.open .k-num { color: var(--seaweed); }
+  .kpi.overdue .k-num { color: var(--red); }
+  .kpi.dueweek .k-num { color: var(--ocean); }
   .kpi.completed .k-num { color: var(--green); }
+  .barchart { display: flex; flex-direction: column; gap: 12px; padding: 8px 2px 2px; }
+  .bar-row { display: grid; grid-template-columns: 116px 1fr 30px; align-items: center; gap: 12px; }
+  .bar-row .b-label { font-size: 13px; color: var(--seaweed-70); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--foam-2, #f2ede0); border-radius: 6px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--yellow); border-radius: 6px; min-width: 3px; transition: width .35s ease; }
+  .bar-row .b-val { font-size: 13px; font-weight: 700; color: var(--seaweed); text-align: right; }
+  .barchart .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
 
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
   .panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
@@ -181,10 +189,22 @@
         <h1 class="welcome serif">Welcome back.</h1>
         <p class="welcome-sub">Centralized Request Management System for The Sunny Hotel</p>
         <div class="kpis">
-          <div class="kpi active"><div class="k-label">Active Requests</div><div class="k-num" id="kpi-active">—</div><div class="k-foot">Across all categories</div></div>
-          <div class="kpi review"><div class="k-label">In Review</div><div class="k-num" id="kpi-review">—</div><div class="k-foot">Awaiting approval</div></div>
-          <div class="kpi progress"><div class="k-label">In Progress</div><div class="k-num" id="kpi-progress">—</div><div class="k-foot">Being worked on</div></div>
-          <div class="kpi completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-completed">—</div><div class="k-foot">Total fulfilled</div></div>
+          <div class="kpi open"><div class="k-label">Open Requests</div><div class="k-num" id="kpi-open">—</div><div class="k-foot">Across all four boards</div></div>
+          <div class="kpi overdue"><div class="k-label">Overdue</div><div class="k-num" id="kpi-overdue">—</div><div class="k-foot">Past their due date</div></div>
+          <div class="kpi dueweek"><div class="k-label">Due This Week</div><div class="k-num" id="kpi-dueweek">—</div><div class="k-foot">Next 7 days</div></div>
+          <div class="kpi completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-done30">—</div><div class="k-foot">Last 30 days</div></div>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-head"><h3>Open by request type</h3></div>
+            <div class="panel-sub">Where the outstanding work sits</div>
+            <div id="chart-board" class="barchart"><div class="loading">Loading…</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Open by team</h3></div>
+            <div class="panel-sub">Which teams have the most open requests</div>
+            <div id="chart-team" class="barchart"><div class="loading">Loading…</div></div>
+          </div>
         </div>
         <div class="two-col">
           <div class="panel">
@@ -262,25 +282,28 @@ function sunMark() {
 }
 const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palette', print: 'printer' };
 
+const TEAMS = ['Sales','Front Office','Rooms','F&B','Marketing','Ownership','Brand'];
 const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
+    { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'department', label: 'Department', type: 'text' },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
     { key: 'budget', label: 'Budget', type: 'text' },
-    { key: 'dueDate', label: 'Due Date', type: 'date' },
+    { key: 'dueDate', label: 'Due Date', type: 'date', required: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'notes', label: 'Notes', type: 'textarea', full: true },
   ] },
   uniform: { label: 'Uniform', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
+    { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
     { key: 'departmentRole', label: 'Department / Role', type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
-    { key: 'dueDate', label: 'Due Date', type: 'date' },
+    { key: 'dueDate', label: 'Due Date', type: 'date', required: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'sizeRequirements', label: 'Size Requirements', type: 'textarea', full: true },
@@ -289,16 +312,18 @@ const CATEGORIES = {
   ] },
   creative: { label: 'Creative', fields: [
     { key: 'name', label: 'Project Name', type: 'text', required: true },
+    { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
     { key: 'departmentOutlet', label: 'Department or Outlet', type: 'text' },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
-    { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date' },
+    { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true },
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
     { key: 'referenceLinks', label: 'Reference Links (paste URLs, one per line — best for large files)', type: 'textarea', full: true },
     { key: 'files', label: 'Reference Files (images or PDFs, ~3 MB total)', type: 'file', full: true },
   ] },
   print: { label: 'Print', autoName: true, fields: [
+    { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
     { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
       options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'], showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
@@ -307,7 +332,7 @@ const CATEGORIES = {
     { key: 'requesterName', label: 'Requester Name', type: 'text' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
-    { key: 'neededBy', label: 'Needed By', type: 'date' },
+    { key: 'neededBy', label: 'Needed By', type: 'date', required: true },
   ] },
 };
 
@@ -356,10 +381,10 @@ document.getElementById('qa-head').insertAdjacentHTML('afterbegin', ICONS.bolt);
 document.getElementById('signout').addEventListener('click', signOut);
 // Requester dashboard shows only their own items — relabel accordingly.
 if (ROLE === 'requester') {
-  const sub = document.querySelector('#view-dashboard .panel-sub'); if (sub) sub.textContent = 'Your latest requests';
+  const sub = document.querySelector('#recent-head + .panel-sub'); if (sub) sub.textContent = 'Your latest requests';
   const foots = document.querySelectorAll('#view-dashboard .kpi .k-foot');
   if (foots[0]) foots[0].textContent = 'Your open requests';
-  if (foots[3]) foots[3].textContent = 'Your completed';
+  if (foots[3]) foots[3].textContent = 'Your completed (30d)';
 }
 
 // ---- Navigation (role-aware) ----
@@ -403,16 +428,33 @@ function navTo(n) {
 }
 
 // ---- Dashboard ----
+function renderBars(id, rows) {
+  const el = document.getElementById(id); if (!el) return;
+  rows = (rows || []).filter(r => r[1] > 0);
+  if (!rows.length) { el.innerHTML = '<div class="empty">Nothing open right now.</div>'; return; }
+  const max = Math.max(1, ...rows.map(r => r[1]));
+  el.innerHTML = rows.map(([label, val]) => {
+    const pct = Math.round((val / max) * 100);
+    return '<div class="bar-row"><div class="b-label" title="'+esc(label)+'">'+esc(label)+'</div>'
+      + '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+      + '<div class="b-val">'+val+'</div></div>';
+  }).join('');
+}
 async function loadDashboard() {
   const feed = document.getElementById('feed');
-  ['active','review','progress','completed'].forEach(k => document.getElementById('kpi-'+k).textContent = '—');
+  ['open','overdue','dueweek','done30'].forEach(k => document.getElementById('kpi-'+k).textContent = '—');
+  document.getElementById('chart-board').innerHTML = '<div class="loading">Loading…</div>';
+  document.getElementById('chart-team').innerHTML = '<div class="loading">Loading…</div>';
   feed.innerHTML = '<div class="loading">Loading…</div>';
   try {
     const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 12 }) ]);
-    document.getElementById('kpi-active').textContent = counts.totals.active;
-    document.getElementById('kpi-review').textContent = counts.totals.review;
-    document.getElementById('kpi-progress').textContent = counts.totals.progress;
-    document.getElementById('kpi-completed').textContent = counts.totals.completed;
+    document.getElementById('kpi-open').textContent = counts.openTotal;
+    document.getElementById('kpi-overdue').textContent = counts.overdue;
+    document.getElementById('kpi-dueweek').textContent = counts.dueThisWeek;
+    document.getElementById('kpi-done30').textContent = counts.completed30d;
+    const boardOrder = ['procurement','uniform','creative','print'];
+    renderBars('chart-board', boardOrder.map(k => [CATEGORIES[k] ? CATEGORIES[k].label : k, counts.openByBoard[k] || 0]));
+    renderBars('chart-team', Object.entries(counts.openByTeam || {}).sort((a,b) => b[1]-a[1]));
     if (!recent.items.length) { feed.innerHTML = '<div class="empty">No submissions yet.</div>'; return; }
     feed.innerHTML = recent.items.map(it => { const c = statusColor(it.status);
       return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">

@@ -139,6 +139,10 @@
   }
   .check input { width: auto; margin: 0; accent-color: var(--gold-deep); }
   .check:has(input:checked) { border-color: var(--gold); background: #fffaf0; }
+  .outletqty { display: flex; flex-direction: column; gap: 8px; }
+  .oq-row { display: flex; align-items: center; gap: 10px; }
+  .oq-row .oq-name { flex: 1; justify-content: flex-start; }
+  .oq-row .oq-qty { width: 110px; flex: none; }
 
   .btn {
     background: var(--ink); color: var(--cream); border: none; padding: 12px 24px; border-radius: 8px;
@@ -257,14 +261,13 @@ const CATEGORIES = {
     label: 'Procurement',
     fields: [
       { key: 'name', label: 'Request Title', type: 'text', required: true },
-      { key: 'requestType', label: 'Request Type', type: 'select', options: ['General Procurement','Uniform Request'] },
       { key: 'department', label: 'Department', type: 'text' },
       { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
       { key: 'quantity', label: 'Quantity', type: 'number' },
       { key: 'vendor', label: 'Vendor', type: 'text' },
       { key: 'budget', label: 'Budget', type: 'text' },
-      { key: 'deliveryLocation', label: 'Delivery Location', type: 'text' },
       { key: 'dueDate', label: 'Due Date', type: 'date' },
+      { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
       { key: 'notes', label: 'Notes', type: 'textarea', full: true },
     ],
   },
@@ -276,6 +279,7 @@ const CATEGORIES = {
       { key: 'departmentRole', label: 'Department / Role', type: 'text' },
       { key: 'quantity', label: 'Quantity', type: 'number' },
       { key: 'dueDate', label: 'Due Date', type: 'date' },
+      { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
       { key: 'sizeRequirements', label: 'Size Requirements', type: 'textarea', full: true },
       { key: 'requirements', label: 'Specific Requirements (colors, styles, branding)', type: 'textarea', full: true },
       { key: 'notes', label: 'Notes', type: 'textarea', full: true },
@@ -287,7 +291,7 @@ const CATEGORIES = {
       { key: 'name', label: 'Project Name', type: 'text', required: true },
       { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
       { key: 'departmentOutlet', label: 'Department or Outlet', type: 'text' },
-      { key: 'email', label: 'Your Email Address', type: 'email' },
+      { key: 'email', label: 'Your Email Address', type: 'email', required: true },
       { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date' },
       { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
     ],
@@ -297,14 +301,15 @@ const CATEGORIES = {
     autoName: true, // no title field; name is generated on submit
     fields: [
       { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
-      { key: 'outlets', label: 'Which outlet(s)? (select all that apply)', type: 'multiselect',
+      { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
         options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'],
-        showIf: { field: 'printType', equals: 'Menus' }, required: true },
+        showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
       { key: 'details', label: 'What do you need printed?', type: 'textarea', full: true,
         showIf: { field: 'printType', equals: 'Other' }, required: true },
-      { key: 'quantity', label: 'Quantity needed', type: 'number', required: true },
+      { key: 'quantity', label: 'Quantity needed', type: 'number',
+        showIf: { field: 'printType', equals: 'Other' }, required: true },
       { key: 'requesterName', label: 'Requester Name', type: 'text' },
-      { key: 'requesterEmail', label: 'Requester Email', type: 'email' },
+      { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
       { key: 'neededBy', label: 'Needed By', type: 'date' },
     ],
   },
@@ -428,6 +433,14 @@ function fieldControl(f) {
       '<label class="check"><input type="checkbox" name="'+f.key+'" value="'+esc(o)+'" /> '+esc(o)+'</label>'
     ).join('') + '</div>';
   }
+  if (f.type === 'outletqty') {
+    return '<div class="outletqty">' + f.options.map(o =>
+      '<div class="oq-row">'
+      + '<label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
+      + '<input type="number" min="1" step="1" inputmode="numeric" data-oq-qty="'+esc(o)+'" placeholder="Qty" class="oq-qty" />'
+      + '</div>'
+    ).join('') + '</div>';
+  }
   if (f.type === 'textarea') return '<textarea name="'+f.key+'"'+req+'></textarea>';
   return '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
 }
@@ -467,8 +480,9 @@ function applyConditions() {
 
 function buildPrintName(fields) {
   if (fields.printType === 'Menus') {
-    const o = Array.isArray(fields.outlets) ? fields.outlets : (fields.outlets ? [fields.outlets] : []);
-    return o.length ? 'Menus — ' + o.join(', ') : 'Menu print request';
+    const oq = fields.outletQuantities || {};
+    const parts = Object.entries(oq).map(([o, q]) => o + ' ×' + q);
+    return parts.length ? 'Menus — ' + parts.join(', ') : 'Menu print request';
   }
   if (fields.printType === 'Other') {
     const d = (fields.details || '').trim();
@@ -485,17 +499,34 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
 
   // Gather values only from currently-visible fields.
   const fields = {};
+  let oqError = null;
   cfg.fields.forEach(f => {
     const wrap = form.querySelector('.field[data-key="'+f.key+'"]');
     if (!wrap || wrap.style.display === 'none') return;
     if (f.type === 'multiselect') {
       const vals = [...wrap.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
       if (vals.length) fields[f.key] = vals;
+    } else if (f.type === 'outletqty') {
+      const oq = {};
+      wrap.querySelectorAll('.oq-row').forEach(row => {
+        const chk = row.querySelector('[data-oq-check]');
+        const q = row.querySelector('[data-oq-qty]');
+        const outlet = chk.getAttribute('data-oq-check');
+        const qty = q ? String(q.value).trim() : '';
+        if (chk.checked) {
+          if (qty === '' || Number(qty) <= 0) oqError = 'Enter a quantity for ' + outlet + '.';
+          else oq[outlet] = qty;
+        } else if (qty !== '' && Number(qty) > 0) {
+          oq[outlet] = qty; // qty typed without ticking the box → count it
+        }
+      });
+      if (Object.keys(oq).length) fields[f.key] = oq;
     } else {
       const el = wrap.querySelector('[name="'+f.key+'"]');
       if (el && String(el.value).trim() !== '') fields[f.key] = el.value;
     }
   });
+  if (oqError) { toast(oqError, true); return; }
 
   // Validate required visible fields.
   for (const f of cfg.fields) {

@@ -1,0 +1,10 @@
+{
+  "name": "request-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Request Hub — dynamic intake + tracking that writes into Monday boards via a serverless token proxy.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  }
+}

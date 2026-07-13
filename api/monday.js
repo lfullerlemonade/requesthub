@@ -661,6 +661,10 @@ export default async function handler(req, res) {
     switch (action) {
       case 'verify-email':
         result = await verifyEmailAction({ email: params.email });
+        // Issue an HttpOnly session cookie so the Edge middleware can guard /app.
+        if (result && result.approved && result.token && result.token !== 'open') {
+          res.setHeader('Set-Cookie', `rh_session=${result.token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${12 * 60 * 60}`);
+        }
         break;
       case 'create-routed-request':
         result = await createRoutedRequest({ category: params.category, fields: params.fields });

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Request Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --foam: #fbf8f0; --foam-2: #f4efe3; --white: #ffffff;
+    --seaweed: #092e36; --seaweed-70: rgba(9,46,54,0.72); --muted: #6d7a77;
+    --yellow: #ffc03f; --sand: #faf1c0; --ocean: #3d6395; --pool: #006eb6;
+    --green: #1f8a5b; --green-bg: #e4f1e9; --red: #b23a2e;
+    --line: rgba(9,46,54,0.12); --line-2: rgba(9,46,54,0.07);
+    --sidebar-w: 244px; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--foam); color: var(--seaweed);
+    font-family: "Poppins", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Fraunces", Georgia, "Times New Roman", serif; }
+  .app-shell { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { width: var(--sidebar-w); flex: none; background: var(--white); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 20px 20px 18px; border-bottom: 1px solid var(--line-2); }
+  .brand .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--yellow); display: grid; place-items: center; flex: none; }
+  .brand .mark svg { width: 22px; height: 22px; color: var(--seaweed); }
+  .brand .b-name { font-size: 15px; font-weight: 700; }
+  .brand .b-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  nav.side { padding: 16px 12px; flex: 1; overflow-y: auto; }
+  .nav-section { font-size: 10.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); padding: 0 10px; margin: 14px 0 7px; }
+  .nav-section:first-child { margin-top: 0; }
+  .nav-item { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; border: none; background: none;
+    padding: 9px 10px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--seaweed-70); cursor: pointer;
+    font-family: inherit; border-left: 3px solid transparent; transition: background .12s ease, color .12s ease; }
+  .nav-item svg { width: 17px; height: 17px; flex: none; color: var(--seaweed-70); }
+  .nav-item:hover { background: var(--foam-2); color: var(--seaweed); }
+  .nav-item.active { background: var(--foam-2); color: var(--seaweed); font-weight: 600; border-left-color: var(--yellow); }
+  .nav-item.active svg { color: var(--seaweed); }
+
+  .user { display: flex; align-items: center; gap: 11px; padding: 13px 16px; border-top: 1px solid var(--line-2); }
+  .user .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--sand); border: 1px solid var(--line);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--seaweed); flex: none; }
+  .user .u-name { font-size: 12.5px; font-weight: 600; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user .u-signout { font-size: 11.5px; color: var(--muted); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+  .user .u-signout:hover { color: var(--seaweed); text-decoration: underline; }
+
+  /* Main */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 26px; border-bottom: 1px solid var(--line); background: var(--foam); position: sticky; top: 0; z-index: 5; }
+  .topbar .toggle { border: none; background: none; cursor: pointer; padding: 4px; border-radius: 7px; color: var(--seaweed-70); display: grid; place-items: center; }
+  .topbar .toggle:hover { background: var(--foam-2); }
+  .topbar .toggle svg { width: 20px; height: 20px; }
+  .topbar h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .content { padding: 30px 34px 60px; max-width: 1180px; width: 100%; }
+
+  .view { display: none; }
+  .view.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  .welcome { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .welcome-sub { color: var(--muted); font-size: 15px; margin: 8px 0 26px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .kpi { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .kpi .k-label { font-size: 14px; font-weight: 600; color: var(--seaweed-70); }
+  .kpi .k-num { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 12px 0 6px; line-height: 1; color: var(--seaweed); }
+  .kpi .k-foot { font-size: 12.5px; color: var(--muted); }
+  .kpi.review .k-num { color: var(--ocean); }
+  .kpi.progress .k-num { color: var(--pool); }
+  .kpi.completed .k-num { color: var(--green); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+  .panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
+  .panel-head { display: flex; align-items: center; gap: 9px; }
+  .panel-head svg { width: 17px; height: 17px; color: var(--seaweed); }
+  .panel-head h3 { font-size: 15px; font-weight: 600; margin: 0; }
+  .panel-sub { font-size: 12.5px; color: var(--muted); margin: 3px 0 4px 26px; }
+
+  .sub-row { display: block; text-decoration: none; color: inherit; border: 1px solid var(--line-2); border-radius: 11px;
+    padding: 13px 15px; margin-top: 12px; transition: border-color .12s ease, background .12s ease; }
+  .sub-row:hover { border-color: var(--line); background: var(--foam); }
+  .sub-row .s-name { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .sub-row .s-tags { display: flex; align-items: center; gap: 8px; }
+
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    background: var(--foam-2); color: var(--seaweed-70); border: 1px solid var(--line-2); }
+  .status-pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+  .qa-btn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+    background: var(--white); border: 1px solid var(--line); border-radius: 11px; padding: 14px 16px; margin-top: 12px;
+    font-size: 14px; font-weight: 600; color: var(--seaweed); transition: all .12s ease; }
+  .qa-btn:hover { border-color: var(--yellow); background: #fffdf6; }
+  .qa-btn svg { width: 18px; height: 18px; color: var(--seaweed); flex: none; }
+
+  .cat-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  .cat-card { border: 1px solid var(--line); background: var(--white); border-radius: var(--radius); padding: 18px 14px; cursor: pointer;
+    font-family: inherit; text-align: left; transition: all .14s ease; display: flex; flex-direction: column; gap: 10px; }
+  .cat-card svg { width: 20px; height: 20px; color: var(--seaweed); }
+  .cat-card .c-name { font-weight: 600; font-size: 15px; }
+  .cat-card:hover { border-color: var(--yellow); }
+  .cat-card.active { background: var(--seaweed); border-color: var(--seaweed); }
+  .cat-card.active .c-name { color: var(--foam); }
+  .cat-card.active svg { color: var(--foam); }
+
+  .card-block { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 7px; color: var(--seaweed-70); }
+  .field .req { color: var(--ocean); }
+  .field input, .field select, .field textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; background: #fff; color: var(--seaweed); font-family: inherit; }
+  .field textarea { min-height: 92px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(255,192,63,0.26); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .check { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; user-select: none; background: #fff; }
+  .check input { width: auto; margin: 0; accent-color: var(--seaweed); }
+  .check:has(input:checked) { border-color: var(--yellow); background: #fffdf6; }
+  .outletqty { display: flex; flex-direction: column; gap: 8px; }
+  .oq-row { display: flex; align-items: center; gap: 10px; }
+  .oq-row .oq-name { flex: 1; justify-content: flex-start; }
+  .oq-row .oq-qty { width: 110px; flex: none; }
+  .btn { background: var(--seaweed); color: var(--foam); border: none; padding: 12px 24px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity .15s ease; }
+  .btn:hover { opacity: .9; } .btn:disabled { opacity: .5; cursor: default; }
+  .btn.secondary { background: #fff; color: var(--seaweed); border: 1px solid var(--line); }
+  .btn.secondary:hover { background: var(--foam-2); opacity: 1; }
+
+  .table-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .table-controls input[type=search], .table-controls select { padding: 10px 13px; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; background: #fff; font-family: inherit; color: var(--seaweed); }
+  .table-controls input[type=search] { flex: 1; min-width: 220px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 13px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: var(--foam); }
+  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--line-2); font-size: 14px; vertical-align: top; }
+  tbody tr:hover { background: var(--foam); }
+  tbody td a { color: var(--seaweed); text-decoration: none; font-weight: 600; }
+  tbody td a:hover { color: var(--ocean); text-decoration: underline; }
+  .load-more-wrap { padding: 16px; text-align: center; }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: var(--seaweed); color: var(--foam); padding: 13px 22px; border-radius: 11px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; max-width: 90vw; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); }
+  .empty, .loading { color: var(--muted); font-size: 14px; padding: 28px 18px; text-align: center; }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .cat-picker { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; z-index: 20; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
+    .app-shell:not(.nav-open) .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell" id="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark" id="brand-icon"></div>
+      <div><div class="b-name">Request Hub</div><div class="b-sub">The Sunny Hotel</div></div>
+    </div>
+    <nav class="side" id="side-nav"></nav>
+    <div class="user">
+      <div class="avatar" id="user-avatar">–</div>
+      <div style="min-width:0">
+        <div class="u-name" id="user-email">—</div>
+        <button class="u-signout" id="signout">Sign out</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="toggle" id="nav-toggle" title="Toggle menu"></button>
+      <h2 id="view-title">Dashboard</h2>
+    </div>
+    <div class="content">
+
+      <section class="view active" id="view-dashboard">
+        <h1 class="welcome serif">Welcome back.</h1>
+        <p class="welcome-sub">Centralized Request Management System for The Sunny Hotel</p>
+        <div class="kpis">
+          <div class="kpi active"><div class="k-label">Active Requests</div><div class="k-num" id="kpi-active">—</div><div class="k-foot">Across all categories</div></div>
+          <div class="kpi review"><div class="k-label">In Review</div><div class="k-num" id="kpi-review">—</div><div class="k-foot">Awaiting approval</div></div>
+          <div class="kpi progress"><div class="k-label">In Progress</div><div class="k-num" id="kpi-progress">—</div><div class="k-foot">Being worked on</div></div>
+          <div class="kpi completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-completed">—</div><div class="k-foot">Total fulfilled</div></div>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-head" id="recent-head"><h3>Recent Submissions</h3></div>
+            <div class="panel-sub">Latest requests from our team</div>
+            <div id="feed"><div class="loading">Loading…</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head" id="qa-head"><h3>Quick Actions</h3></div>
+            <div class="panel-sub">Start a new request</div>
+            <div id="quick-actions"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-submit">
+        <h1 class="welcome serif" style="font-size:28px">Submit a request</h1>
+        <p class="welcome-sub">Choose a category, then fill in the details</p>
+        <div class="cat-picker" id="cat-picker"></div>
+        <div class="card-block"><form id="request-form" autocomplete="off"></form></div>
+      </section>
+
+      <section class="view" id="view-track">
+        <h1 class="welcome serif" id="track-title" style="font-size:28px">Requests</h1>
+        <p class="welcome-sub">Search, filter, and review submitted requests</p>
+        <div class="table-controls">
+          <input type="search" id="track-search" placeholder="Search by name…" />
+          <select id="track-status"><option value="">All statuses</option></select>
+          <button class="btn secondary" id="track-refresh">Refresh</button>
+        </div>
+        <div class="card-block" style="padding:0">
+          <table><thead id="track-thead"></thead><tbody id="track-tbody"></tbody></table>
+          <div class="load-more-wrap" id="track-loadmore-wrap" style="display:none"><button class="btn secondary" id="track-loadmore">Load more</button></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/monday';
+
+// ---- Auth guard ----
+function getToken() { try { return localStorage.getItem('rh_token'); } catch (e) { return null; } }
+function getEmail() { try { return localStorage.getItem('rh_email') || ''; } catch (e) { return ''; } }
+function signOut() { try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); } catch (e) {} location.replace('/'); }
+if (!getToken()) location.replace('/');
+
+const ICONS = {
+  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39A2 2 0 0 0 9.62 16h9.72a2 2 0 0 0 1.96-1.61L23 6H6"/></svg>',
+  shirt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>',
+  palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.7 0 2.5-1.3 2.5-2.5 0-.6-.2-1.1-.6-1.5-.4-.4-.6-.9-.6-1.5 0-1.2 1-2.2 2.2-2.2H17c2.8 0 5-2.2 5-5C22 5.8 17.5 2 12 2z"/></svg>',
+  printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M13 8l-4 5h3l-1 4"/></svg>',
+};
+function sunMark() {
+  const rays = Array.from({length: 8}, (_, i) => { const a=(i*Math.PI)/4, x1=12+Math.cos(a)*7.5, y1=12+Math.sin(a)*7.5, x2=12+Math.cos(a)*10.5, y2=12+Math.sin(a)*10.5;
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none"/>${rays}</svg>`;
+}
+const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palette', print: 'printer' };
+
+const CATEGORIES = {
+  procurement: { label: 'Procurement', fields: [
+    { key: 'name', label: 'Request Title', type: 'text', required: true },
+    { key: 'department', label: 'Department', type: 'text' },
+    { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
+    { key: 'quantity', label: 'Quantity', type: 'number' },
+    { key: 'vendor', label: 'Vendor', type: 'text' },
+    { key: 'budget', label: 'Budget', type: 'text' },
+    { key: 'dueDate', label: 'Due Date', type: 'date' },
+    { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'notes', label: 'Notes', type: 'textarea', full: true },
+  ] },
+  uniform: { label: 'Uniform', fields: [
+    { key: 'name', label: 'Request Title', type: 'text', required: true },
+    { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
+    { key: 'departmentRole', label: 'Department / Role', type: 'text' },
+    { key: 'quantity', label: 'Quantity', type: 'number' },
+    { key: 'dueDate', label: 'Due Date', type: 'date' },
+    { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'sizeRequirements', label: 'Size Requirements', type: 'textarea', full: true },
+    { key: 'requirements', label: 'Specific Requirements (colors, styles, branding)', type: 'textarea', full: true },
+    { key: 'notes', label: 'Notes', type: 'textarea', full: true },
+  ] },
+  creative: { label: 'Creative', fields: [
+    { key: 'name', label: 'Project Name', type: 'text', required: true },
+    { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
+    { key: 'departmentOutlet', label: 'Department or Outlet', type: 'text' },
+    { key: 'email', label: 'Your Email Address', type: 'email', required: true },
+    { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date' },
+    { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
+  ] },
+  print: { label: 'Print', autoName: true, fields: [
+    { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
+    { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
+      options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'], showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
+    { key: 'details', label: 'What do you need printed?', type: 'textarea', full: true, showIf: { field: 'printType', equals: 'Other' }, required: true },
+    { key: 'quantity', label: 'Quantity needed', type: 'number', showIf: { field: 'printType', equals: 'Other' }, required: true },
+    { key: 'requesterName', label: 'Requester Name', type: 'text' },
+    { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'neededBy', label: 'Needed By', type: 'date' },
+  ] },
+};
+
+const COLUMN_LABELS = {
+  color_mm3ym1pj: 'Status', text_mm3ytbvq: 'Department', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
+  color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', text_mm3yghj8: 'Department/Role', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
+  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', text_mm57mzz2: 'Department/Outlet', date_mm57j8b: 'Ideal Due Date',
+  color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
+};
+const STATUS_OPTIONS = {
+  procurement: ['New Request','Awaiting Design','Ready to Order','Ordered','In Transit','Delivered'],
+  uniform: ['New Request','Sourcing','Ordered','In Transit','Delivered'],
+  creative: ['New','Working On It','Pending Review','Completed','Stuck'],
+  print: ['New','In Progress','Printed'],
+};
+function statusColor(label) {
+  const s = (label || '').toLowerCase();
+  if (/(cancel|reject|stuck)/.test(s)) return { bg:'#fbe3e0', fg:'var(--red)' };
+  if (/(complete|received|delivered|printed|live|done)/.test(s)) return { bg:'var(--green-bg)', fg:'var(--green)' };
+  if (/(review|pending)/.test(s)) return { bg:'#e6ecf4', fg:'var(--ocean)' };
+  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'#e2eef7', fg:'var(--pool)' };
+  return { bg:'var(--sand)', fg:'#7a6a2a' }; // new / active on sand
+}
+
+async function callApi(payload) {
+  const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({ token: getToken() }, payload)) });
+  const json = await res.json().catch(() => ({ ok:false, error:'Bad response from server.' }));
+  if (res.status === 401 || json.authRequired) { signOut(); throw new Error('Your session expired — please sign in again.'); }
+  if (!res.ok || json.ok === false) throw new Error(json.error || ('Request failed ('+res.status+').'));
+  return json;
+}
+function toast(msg, isError) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (isError ? ' error' : ''); setTimeout(() => { t.className = 'toast'; }, 4000); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtWhen(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return '';
+  const diff = (Date.now()-d.getTime())/1000;
+  if (diff<60) return 'just now'; if (diff<3600) return Math.floor(diff/60)+'m ago';
+  if (diff<86400) return Math.floor(diff/3600)+'h ago'; if (diff<604800) return Math.floor(diff/86400)+'d ago';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+
+// ---- User footer ----
+document.getElementById('brand-icon').innerHTML = sunMark();
+document.getElementById('nav-toggle').innerHTML = ICONS.menu;
+document.getElementById('recent-head').insertAdjacentHTML('afterbegin', ICONS.clock);
+document.getElementById('qa-head').insertAdjacentHTML('afterbegin', ICONS.bolt);
+(function () { const em = getEmail(); document.getElementById('user-email').textContent = em || 'Signed in';
+  document.getElementById('user-avatar').textContent = (em ? em.replace(/[^a-zA-Z]/g,'').slice(0,2).toUpperCase() : '–') || '–'; })();
+document.getElementById('signout').addEventListener('click', signOut);
+
+// ---- Navigation ----
+const NAV = [
+  { section: 'Overview' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
+  { id: 'submit', label: 'Submit Request', icon: 'plus', view: 'submit' },
+  { section: 'Request Types' },
+  { id: 'procurement', label: 'Procurement', icon: 'cart', view: 'track', cat: 'procurement' },
+  { id: 'uniform', label: 'Uniform', icon: 'shirt', view: 'track', cat: 'uniform' },
+  { id: 'creative', label: 'Creative', icon: 'palette', view: 'track', cat: 'creative' },
+  { id: 'print', label: 'Print', icon: 'printer', view: 'track', cat: 'print' },
+];
+const sideNav = document.getElementById('side-nav');
+NAV.forEach(n => {
+  if (n.section) { const d = document.createElement('div'); d.className = 'nav-section'; d.textContent = n.section; sideNav.appendChild(d); return; }
+  const b = document.createElement('button');
+  b.className = 'nav-item'; b.dataset.nav = n.id;
+  b.innerHTML = ICONS[n.icon] + '<span>' + n.label + '</span>';
+  b.addEventListener('click', () => { navTo(n); document.getElementById('shell').classList.remove('nav-open'); });
+  sideNav.appendChild(b);
+});
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  const shell = document.getElementById('shell');
+  if (window.matchMedia('(max-width: 900px)').matches) shell.classList.toggle('nav-open'); else shell.classList.toggle('collapsed');
+});
+function setActiveNav(id) { sideNav.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === id)); }
+function showView(view) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('view-'+view).classList.add('active'); }
+function navTo(n) {
+  if (n.view === 'dashboard') { setActiveNav('dashboard'); showView('dashboard'); document.getElementById('view-title').textContent = 'Dashboard'; loadDashboard(); }
+  else if (n.view === 'submit') { setActiveNav('submit'); showView('submit'); document.getElementById('view-title').textContent = 'Submit Request'; if (n.cat) selectCategory(n.cat); }
+  else if (n.view === 'track') { setActiveNav(n.cat); showView('track'); document.getElementById('view-title').textContent = CATEGORIES[n.cat].label;
+    document.getElementById('track-title').textContent = CATEGORIES[n.cat].label + ' requests'; currentTrackCat = n.cat;
+    document.getElementById('track-search').value = ''; document.getElementById('track-status').value = ''; loadTrack(n.cat, true); }
+}
+
+// ---- Dashboard ----
+async function loadDashboard() {
+  const feed = document.getElementById('feed');
+  ['active','review','progress','completed'].forEach(k => document.getElementById('kpi-'+k).textContent = '—');
+  feed.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 12 }) ]);
+    document.getElementById('kpi-active').textContent = counts.totals.active;
+    document.getElementById('kpi-review').textContent = counts.totals.review;
+    document.getElementById('kpi-progress').textContent = counts.totals.progress;
+    document.getElementById('kpi-completed').textContent = counts.totals.completed;
+    if (!recent.items.length) { feed.innerHTML = '<div class="empty">No submissions yet.</div>'; return; }
+    feed.innerHTML = recent.items.map(it => { const c = statusColor(it.status);
+      return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
+        <div class="s-name">${esc(it.name)}</div>
+        <div class="s-tags"><span class="tag">${esc(it.category)}</span>
+          ${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}
+          <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(fmtWhen(it.createdAt))}</span></div></a>`;
+    }).join('');
+  } catch (e) { feed.innerHTML = '<div class="empty">Could not load: '+esc(e.message)+'</div>'; }
+}
+const qa = document.getElementById('quick-actions');
+Object.entries(CATEGORIES).forEach(([key, cfg]) => {
+  const b = document.createElement('button'); b.className = 'qa-btn';
+  b.innerHTML = ICONS[CATEGORY_ICON[key]] + '<span>Request ' + cfg.label + '</span>';
+  b.addEventListener('click', () => { setActiveNav('submit'); showView('submit'); document.getElementById('view-title').textContent = 'Submit Request'; selectCategory(key); });
+  qa.appendChild(b);
+});
+
+// ---- Submit ----
+let currentCat = 'procurement';
+const catPicker = document.getElementById('cat-picker');
+Object.entries(CATEGORIES).forEach(([key, cfg]) => {
+  const b = document.createElement('button'); b.className = 'cat-card' + (key === currentCat ? ' active' : ''); b.dataset.cat = key;
+  b.innerHTML = ICONS[CATEGORY_ICON[key]] + '<span class="c-name">' + cfg.label + '</span>';
+  b.addEventListener('click', () => selectCategory(key)); catPicker.appendChild(b);
+});
+function selectCategory(key) { currentCat = key; catPicker.querySelectorAll('.cat-card').forEach(x => x.classList.toggle('active', x.dataset.cat === key)); renderForm(); }
+function fieldControl(f) {
+  const req = f.required ? ' required' : '';
+  if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
+  if (f.type === 'outletqty') return '<div class="outletqty">' + f.options.map(o =>
+    '<div class="oq-row"><label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
+    + '<input type="number" min="1" step="1" inputmode="numeric" data-oq-qty="'+esc(o)+'" placeholder="Qty" class="oq-qty" /></div>').join('') + '</div>';
+  if (f.type === 'textarea') return '<textarea name="'+f.key+'"'+req+'></textarea>';
+  return '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
+}
+function renderForm() {
+  const cfg = CATEGORIES[currentCat]; const form = document.getElementById('request-form');
+  let html = '<div class="grid2">';
+  cfg.fields.forEach(f => {
+    const full = f.full || f.type === 'textarea' || f.type === 'outletqty';
+    const wrapStyle = (full ? 'grid-column:1 / -1;' : '') + (f.showIf ? 'display:none;' : '');
+    const cond = f.showIf ? ' data-showif-field="'+f.showIf.field+'" data-showif-eq="'+esc(f.showIf.equals)+'"' : '';
+    html += '<div class="field" data-key="'+f.key+'"'+cond+' style="'+wrapStyle+'"><label>'+esc(f.label)+(f.required?' <span class="req">*</span>':'')+'</label>'+fieldControl(f)+'</div>';
+  });
+  html += '</div><div style="margin-top:6px"><button type="submit" class="btn" id="submit-btn">Submit '+esc(cfg.label)+' Request</button></div>';
+  form.innerHTML = html;
+  form.querySelectorAll('select[name]').forEach(sel => sel.addEventListener('change', applyConditions));
+  applyConditions();
+}
+function applyConditions() {
+  const form = document.getElementById('request-form');
+  form.querySelectorAll('.field[data-showif-field]').forEach(el => {
+    const ctrl = form.querySelector('[name="'+el.getAttribute('data-showif-field')+'"]');
+    el.style.display = (ctrl && ctrl.value === el.getAttribute('data-showif-eq')) ? '' : 'none';
+  });
+}
+function buildPrintName(fields) {
+  if (fields.printType === 'Menus') { const oq = fields.outletQuantities || {}; const parts = Object.entries(oq).map(([o,q]) => o + ' ×' + q); return parts.length ? 'Menus — ' + parts.join(', ') : 'Menu print request'; }
+  if (fields.printType === 'Other') { const d = (fields.details||'').trim(); return d ? (d.length>60?d.slice(0,60)+'…':d) : 'Print request'; }
+  return 'Print request';
+}
+document.getElementById('request-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target; const cfg = CATEGORIES[currentCat]; const btn = document.getElementById('submit-btn');
+  const fields = {}; let oqError = null;
+  cfg.fields.forEach(f => {
+    const wrap = form.querySelector('.field[data-key="'+f.key+'"]');
+    if (!wrap || wrap.style.display === 'none') return;
+    if (f.type === 'outletqty') {
+      const oq = {};
+      wrap.querySelectorAll('.oq-row').forEach(row => {
+        const chk = row.querySelector('[data-oq-check]'); const q = row.querySelector('[data-oq-qty]');
+        const outlet = chk.getAttribute('data-oq-check'); const qty = q ? String(q.value).trim() : '';
+        if (chk.checked) { if (qty === '' || Number(qty) <= 0) oqError = 'Enter a quantity for ' + outlet + '.'; else oq[outlet] = qty; }
+        else if (qty !== '' && Number(qty) > 0) oq[outlet] = qty;
+      });
+      if (Object.keys(oq).length) fields[f.key] = oq;
+    } else { const el = wrap.querySelector('[name="'+f.key+'"]'); if (el && String(el.value).trim() !== '') fields[f.key] = el.value; }
+  });
+  if (oqError) { toast(oqError, true); return; }
+  for (const f of cfg.fields) {
+    const wrap = form.querySelector('.field[data-key="'+f.key+'"]');
+    if (!wrap || wrap.style.display === 'none') continue;
+    if (f.required && (fields[f.key] === undefined || (Array.isArray(fields[f.key]) && !fields[f.key].length))) { toast('Please complete: ' + f.label, true); return; }
+  }
+  if (cfg.autoName && !fields.name) fields.name = buildPrintName(fields);
+  if (!fields.name) { toast('Please add a title.', true); return; }
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const res = await callApi({ action: 'create-routed-request', category: currentCat, fields });
+    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.emailSent ? ' · confirmation emailed' : ''));
+    renderForm();
+  } catch (err) { toast('Submit failed: ' + err.message, true); }
+  finally { const b = document.getElementById('submit-btn'); if (b) { b.disabled = false; b.textContent = 'Submit ' + cfg.label + ' Request'; } }
+});
+
+// ---- Track ----
+let currentTrackCat = 'procurement'; let trackCursor = null; let trackLoadedFilter = { search:'', status:'' };
+document.getElementById('track-refresh').addEventListener('click', () => loadTrack(currentTrackCat, true));
+let searchDebounce;
+document.getElementById('track-search').addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => loadTrack(currentTrackCat, true), 350); });
+document.getElementById('track-status').addEventListener('change', () => loadTrack(currentTrackCat, true));
+document.getElementById('track-loadmore').addEventListener('click', () => loadTrack(currentTrackCat, false));
+function buildStatusFilter(cat) { const sel = document.getElementById('track-status'); sel.innerHTML = '<option value="">All statuses</option>' + (STATUS_OPTIONS[cat]||[]).map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join(''); }
+async function loadTrack(cat, reset) {
+  const thead = document.getElementById('track-thead'); const tbody = document.getElementById('track-tbody'); const lmWrap = document.getElementById('track-loadmore-wrap');
+  const search = document.getElementById('track-search').value.trim(); const status = document.getElementById('track-status').value.trim();
+  if (reset) { trackCursor = null; trackLoadedFilter = { search, status }; buildStatusFilter(cat); tbody.innerHTML = '<tr><td colspan="6"><div class="loading">Loading…</div></td></tr>'; lmWrap.style.display = 'none'; }
+  try {
+    const res = await callApi({ action: 'list-board-items', category: cat, search: trackLoadedFilter.search || undefined, status: trackLoadedFilter.status || undefined, cursor: reset ? undefined : trackCursor, limit: 25 });
+    const cols = res.columns;
+    thead.innerHTML = '<tr><th>Name</th>' + cols.map(c => '<th>'+esc(COLUMN_LABELS[c] || c)+'</th>').join('') + '</tr>';
+    const rowsHtml = res.items.map(it => {
+      const tds = cols.map(c => { const val = it.columns[c] || '';
+        if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') { if (!val) return '<td></td>'; const col = statusColor(val); return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>'; }
+        return '<td>'+esc(val)+'</td>'; }).join('');
+      return '<tr><td><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a></td>'+tds+'</tr>';
+    }).join('');
+    if (reset) tbody.innerHTML = rowsHtml || '<tr><td colspan="'+(cols.length+1)+'"><div class="empty">No matching requests.</div></td></tr>';
+    else tbody.insertAdjacentHTML('beforeend', rowsHtml);
+    trackCursor = res.nextCursor; lmWrap.style.display = res.hasMore ? 'block' : 'none';
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Could not load: '+esc(e.message)+'</div></td></tr>'; lmWrap.style.display = 'none'; }
+}
+
+// ---- Init ----
+renderForm();
+navTo({ view: 'dashboard' });
+</script>
+</body>
+</html>

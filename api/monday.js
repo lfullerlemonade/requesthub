@@ -522,7 +522,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         group_id: $groupId,
         item_name: $itemName,
         column_values: $columnValues,
-        create_labels_if_missing: false
+        create_labels_if_missing: true
       ) { id name }
     }`;
 

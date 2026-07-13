@@ -67,7 +67,7 @@ form.addEventListener('submit', async (e) => {
     const json = await res.json().catch(() => ({ ok: false, error: 'Unexpected response.' }));
     if (!res.ok || json.ok === false) throw new Error(json.error || 'Something went wrong.');
     if (json.approved) {
-      try { localStorage.setItem('rh_token', json.token); localStorage.setItem('rh_email', json.email || email); } catch (e) {}
+      try { localStorage.setItem('rh_token', json.token); localStorage.setItem('rh_email', json.email || email); localStorage.setItem('rh_role', json.role || 'requester'); } catch (e) {}
       location.href = 'app';
     } else {
       msg.textContent = "That email isn't on the approved list. Check the address, or ask an admin to add you.";

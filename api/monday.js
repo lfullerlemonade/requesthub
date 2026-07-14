@@ -167,6 +167,20 @@ const PRINT_OUTLET_QTY_COLUMNS = {
 const PRINT_OUTLET_DROPDOWN = 'dropdown_mm57yjtk';
 const PRINT_TOTAL_QTY = 'numeric_mm57rqaq';
 
+// Creative → Social handoff. When a Creative request is for social media, spin
+// up a linked post on the Social & Content board (18409075892) carrying the
+// target post date, so scheduling sees it on the calendar right away. The two
+// items are cross-linked so you can jump from the post to the finished asset.
+const SOCIAL_BOARD = {
+  boardId: 18409075892,
+  group: 'group_mm2fkwqn',            // "Upcoming Posts"
+  statusColumn: 'color_mm2f40w0',
+  defaultStatus: 'Draft',             // asset not produced yet
+  postDateColumn: 'date_mm2fwsds',    // "Post Date"
+  linkToCreativeCol: 'link_mm58rtg',  // "Linked Creative Request" on the Social board
+};
+const CREATIVE_SOCIAL_LINK_COL = 'link_mm58hayh'; // "Linked Social Post" on the Creative board
+
 // ---------------------------------------------------------------------------
 // Confirmation email (best-effort). If EMAIL_WEBHOOK_URL is set, we POST the
 // message to it after a request is created. Point that env var at a Microsoft
@@ -193,6 +207,7 @@ const EMAIL_LABELS = {
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
   ccEmail: 'Also notify', team: 'Team',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
+  socialPostDate: 'Date to post',
   contact: 'Contact', eventName: 'Event name', eventDate: 'Event date',
   location: 'Location', guestCount: 'Guest count', startTime: 'Start time', endTime: 'End time',
   typeOfEvent: 'Type of event', serveTimes: 'Serve times', setUpStyle: 'Set-up style',
@@ -635,6 +650,42 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
       await logAccess(f.email || 'unknown', 'Request submitted', pcfg.label, procItem.name + ' (from Creative)');
     } catch (e) {
       result.procurementError = 'Creative request created, but the linked procurement item failed: ' + e.message;
+    }
+  }
+
+  // Creative → Social: when a creative request is for social media, create a
+  // linked post on the Social & Content board with the target post date. It
+  // starts in "Draft" (asset not made yet) and links back to this creative item
+  // so scheduling can click through to the finished asset once it's uploaded.
+  if (category === 'creative' && String(f.contentType || '').toLowerCase() === 'social media' && f.socialPostDate) {
+    try {
+      const creativeUrl = itemUrl(cfg.boardId, item.id);
+      const scv = {
+        [SOCIAL_BOARD.statusColumn]: { label: SOCIAL_BOARD.defaultStatus },
+        [SOCIAL_BOARD.postDateColumn]: { date: String(f.socialPostDate) },
+        [SOCIAL_BOARD.linkToCreativeCol]: { url: creativeUrl, text: 'Creative request' },
+      };
+      const sdata = await mondayQuery(
+        `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
+           create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+         }`,
+        { boardId: String(SOCIAL_BOARD.boardId), groupId: SOCIAL_BOARD.group, itemName: item.name, columnValues: JSON.stringify(scv) }
+      );
+      const socialItem = sdata.create_item;
+      const socialUrl = itemUrl(SOCIAL_BOARD.boardId, socialItem.id);
+      result.socialItemId = socialItem.id;
+      result.socialUrl = socialUrl;
+      // Clickable link on the creative item pointing to the social post.
+      try {
+        await mondayQuery(
+          `mutation ($b: ID!, $i: ID!, $cv: JSON!) { change_multiple_column_values (board_id: $b, item_id: $i, column_values: $cv) { id } }`,
+          { b: String(cfg.boardId), i: String(item.id), cv: JSON.stringify({ [CREATIVE_SOCIAL_LINK_COL]: { url: socialUrl, text: 'Social post' } }) }
+        );
+        result.socialLinked = true;
+      } catch (e) { result.socialLinkWarning = 'Items created; social link cell not set: ' + e.message; }
+      await logAccess(f.email || 'unknown', 'Request submitted', 'Social & Content', socialItem.name + ' (from Creative)');
+    } catch (e) {
+      result.socialError = 'Creative request created, but the linked social post failed: ' + e.message;
     }
   }
 

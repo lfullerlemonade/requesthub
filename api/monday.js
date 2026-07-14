@@ -152,6 +152,26 @@ const BOARDS = {
       { key: 'miscServices', column: 'long_text0d1ov59a', kind: 'long_text' },
     ],
   },
+  general: {
+    label: 'General Request',
+    boardId: 18416054434, // "Other/General Requests"
+    group: 'group_mm3z5m3y', // "New Requests"
+    statusColumn: 'color_mm3ztet1',
+    defaultStatus: 'New Request',
+    emailColumn: 'email_mm58xcf0',    // Requester Email (added for the Hub)
+    emailFieldKey: 'requesterEmail',
+    dateColumn: 'date_mm3z4zk3',       // existing Due Date
+    teamColumn: 'dropdown_mm58xgxs',  // Team (added for the Hub)
+    tableColumns: ['color_mm3ztet1', 'dropdown_mm58xgxs', 'date_mm3z4zk3'],
+    fields: [
+      { key: 'name', column: 'name', kind: 'name' },
+      { key: 'team', column: 'dropdown_mm58xgxs', kind: 'dropdown' },
+      { key: 'requesterEmail', column: 'email_mm58xcf0', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm58f1rj', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'details', column: 'long_text_mm3z4q79', kind: 'long_text' },  // existing Description
+      { key: 'dueDate', column: 'date_mm3z4zk3', kind: 'date' },
+    ],
+  },
 };
 
 // Print per-outlet quantity mapping. On a Menus request each chosen outlet gets
@@ -212,6 +232,7 @@ const REQUESTED_DATE_FIELD = {
   creative: 'idealDueDate',
   print: 'neededBy',
   beo: 'eventDate',
+  general: 'dueDate',
 };
 
 const EMAIL_LABELS = {
@@ -228,6 +249,7 @@ const EMAIL_LABELS = {
   socialPostDate: 'Date to post',
   cardholderName: 'Full name (on card)', personRequesting: 'Person requesting', jobTitle: 'Job title',
   cardEmail: 'Email (on card)', directPhone: 'Direct phone', mobilePhone: 'Mobile phone',
+  details: 'Details',
   contact: 'Contact', eventName: 'Event name', eventDate: 'Event date',
   location: 'Location', guestCount: 'Guest count', startTime: 'Start time', endTime: 'End time',
   typeOfEvent: 'Type of event', serveTimes: 'Serve times', setUpStyle: 'Set-up style',

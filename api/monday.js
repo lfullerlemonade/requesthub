@@ -216,8 +216,11 @@ const BUSINESS_CARD = {
     { key: 'cardEmail', column: 'email65t3k68u', kind: 'email' },   // email printed on the card
     { key: 'directPhone', column: 'phones5y6s7um', kind: 'phone' },
     { key: 'mobilePhone', column: 'phonecb45nl4h', kind: 'phone' },
+    { key: 'email', column: 'email_mm58k036', kind: 'email' },   // requester's sign-in email — powers "My Requests"
   ],
 };
+const BC_DONE_GROUP_ID = 'group_mm383p2j';       // "Complete" group on the Business Card board
+const BC_REQUESTER_EMAIL_COL = 'email_mm58k036'; // "Requested By (Email)"
 
 // ---------------------------------------------------------------------------
 // Confirmation email (best-effort). If EMAIL_WEBHOOK_URL is set, we POST the
@@ -908,8 +911,8 @@ async function dashboardCounts({ role, email } = {}) {
   return { ok: true, openTotal, overdue, dueThisWeek, completed30d, openByBoard, openByTeam };
 }
 
-async function recentSubmissions({ limit = 15, role, email } = {}) {
-  const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
+async function recentSubmissions({ limit = 15, role, email, mine = false } = {}) {
+  const emailFilter = (mine || role === 'requester') ? String(email || '').trim().toLowerCase() : null;
   const all = [];
   await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
@@ -942,6 +945,37 @@ async function recentSubmissions({ limit = 15, role, email } = {}) {
       }
     })
   );
+  // "My Requests" also includes Business Card requests (a Creative sub-type that
+  // routes to its own board). That board has no status column — it tracks state
+  // by group, so completion = the item sitting in the "Complete" group.
+  if (emailFilter) {
+    try {
+      const query = `
+        query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
+          boards (ids: [$boardId]) {
+            items_page (limit: 100, query_params: $qp) {
+              items { id name created_at group { id } column_values (ids: $cols) { id text } }
+            }
+          }
+        }`;
+      const qp = { rules: [{ column_id: BC_REQUESTER_EMAIL_COL, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' };
+      const data = await mondayQuery(query, { boardId: String(BUSINESS_CARD.boardId), cols: [BC_REQUESTER_EMAIL_COL], qp });
+      for (const it of data.boards[0].items_page.items) {
+        const byId = {};
+        for (const c of it.column_values) byId[c.id] = c.text || '';
+        if ((byId[BC_REQUESTER_EMAIL_COL] || '').trim().toLowerCase() !== emailFilter) continue;
+        all.push({
+          itemId: it.id,
+          name: it.name,
+          category: BUSINESS_CARD.label,
+          categoryKey: 'businesscard',
+          status: (it.group && it.group.id === BC_DONE_GROUP_ID) ? 'Completed' : '',
+          createdAt: it.created_at,
+          url: itemUrl(BUSINESS_CARD.boardId, it.id),
+        });
+      }
+    } catch (e) { /* best-effort — never fail My Requests on the Business Card scan */ }
+  }
   all.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return { ok: true, items: all.slice(0, limit) };
 }
@@ -1125,7 +1159,7 @@ export default async function handler(req, res) {
         result = await dashboardCounts({ role: authRole, email: authEmail });
         break;
       case 'recent-submissions':
-        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: authRole, email: authEmail });
+        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: authRole, email: authEmail, mine: Boolean(params.mine) });
         break;
       case 'top-requesters':
         result = await topRequesters({ role: authRole, email: authEmail, days: params.days ? Number(params.days) : 7, top: params.top ? Number(params.top) : 3 });

@@ -120,6 +120,39 @@ const BOARDS = {
       { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
   },
+  beo: {
+    label: 'Banquet Event Order',
+    boardId: 18395449895, // "Banquet Event Order (BEO) Request Form"
+    group: 'topics',      // "Incoming responses" — same group the native form feeds
+    statusColumn: 'color_mm09fjad',
+    defaultStatus: null,  // board has only Working on it / Done / Stuck — leave blank = newly submitted
+    emailColumn: 'email_mm58rj16',    // Requester Email (added for the Hub)
+    emailFieldKey: 'requesterEmail',
+    dateColumn: 'date_mm58gm0p',      // Event Date (added for the Hub) — powers Overdue / Due This Week
+    teamColumn: 'dropdown_mm58q4be',  // Team (added for the Hub)
+    tableColumns: ['color_mm09fjad', 'date_mm58gm0p', 'multi_selectoxjp1hu4', 'short_textimp5o09l', 'short_textgjvu15x0'],
+    fields: [
+      { key: 'name', column: 'name', kind: 'name' },
+      { key: 'team', column: 'dropdown_mm58q4be', kind: 'dropdown' },
+      { key: 'requesterEmail', column: 'email_mm58rj16', kind: 'email' },
+      { key: 'ccEmail', column: 'email_mm58yhy4', kind: 'email' },   // "Also Notify" — optional extra recipient
+      { key: 'department', column: 'short_textjwmf87g1', kind: 'text' },
+      { key: 'contact', column: 'short_textldvm5txi', kind: 'text' },
+      { key: 'eventName', column: 'short_textaromenrh', kind: 'text' },
+      { key: 'eventDate', column: 'date_mm58gm0p', kind: 'date' },
+      { key: 'location', column: 'short_textgjvu15x0', kind: 'text' },
+      { key: 'guestCount', column: 'short_textimp5o09l', kind: 'text' },      // Guest Count is a TEXT column on this board
+      { key: 'startTime', column: 'short_textz4mudep1', kind: 'text' },
+      { key: 'endTime', column: 'short_text7k59v4ze', kind: 'text' },
+      { key: 'typeOfEvent', column: 'multi_selectoxjp1hu4', kind: 'dropdown' },
+      { key: 'serveTimes', column: 'short_text3t7qk7qs', kind: 'text' },
+      { key: 'setUpStyle', column: 'short_textphthav0c', kind: 'text' },
+      { key: 'menuItems', column: 'long_text98h9fovo', kind: 'long_text' },
+      { key: 'beverages', column: 'long_textrefuc008', kind: 'long_text' },
+      { key: 'avEquipment', column: 'long_text8anc161t', kind: 'long_text' },
+      { key: 'miscServices', column: 'long_text0d1ov59a', kind: 'long_text' },
+    ],
+  },
 };
 
 // Print per-outlet quantity mapping. On a Menus request each chosen outlet gets
@@ -147,6 +180,7 @@ const REQUESTED_DATE_FIELD = {
   uniform: 'dueDate',
   creative: 'idealDueDate',
   print: 'neededBy',
+  beo: 'eventDate',
 };
 
 const EMAIL_LABELS = {
@@ -160,6 +194,10 @@ const EMAIL_LABELS = {
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
   ccEmail: 'Also notify', team: 'Team',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
+  contact: 'Contact', eventName: 'Event name', eventDate: 'Event date',
+  location: 'Location', guestCount: 'Guest count', startTime: 'Start time', endTime: 'End time',
+  typeOfEvent: 'Type of event', serveTimes: 'Serve times', setUpStyle: 'Set-up style',
+  menuItems: 'Menu items', beverages: 'Beverages', avEquipment: 'AV equipment', miscServices: 'Miscellaneous services',
 };
 
 function getRequesterEmail(fields) {
@@ -338,8 +376,10 @@ function buildColumnValues(cfg, fields) {
         break;
     }
   }
-  // Always set the default workflow status on creation.
-  cv[cfg.statusColumn] = { label: cfg.defaultStatus };
+  // Set the default workflow status on creation — but only if the board defines
+  // one. Boards without a "new" label (e.g. BEO) use defaultStatus: null so the
+  // item lands with a blank status, which the dashboard treats as newly open.
+  if (cfg.defaultStatus) cv[cfg.statusColumn] = { label: cfg.defaultStatus };
   return cv;
 }
 
@@ -777,6 +817,42 @@ async function recentSubmissions({ limit = 15, role, email } = {}) {
   return { ok: true, items: all.slice(0, limit) };
 }
 
+// Top requesters over a trailing window (default 7 days), ranked by how many
+// requests they submitted across all boards. Admin-only panel on the dashboard.
+// Requesters, if they ever hit it, only see their own tally.
+async function topRequesters({ role, email, days = 7, top = 3 } = {}) {
+  const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const counts = {};
+  await Promise.all(
+    Object.entries(BOARDS).map(async ([, cfg]) => {
+      if (!cfg.emailColumn) return;
+      const query = `
+        query ($boardId: ID!, $cols: [String!]) {
+          boards (ids: [$boardId]) {
+            items_page (limit: 500) { items { created_at column_values (ids: $cols) { id text } } }
+          }
+        }`;
+      const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols: [cfg.emailColumn] });
+      for (const it of data.boards[0].items_page.items) {
+        const t = it.created_at ? new Date(it.created_at).getTime() : 0;
+        if (!t || t < cutoff) continue;
+        const byId = {};
+        for (const c of it.column_values) byId[c.id] = c.text || '';
+        const em = (byId[cfg.emailColumn] || '').trim().toLowerCase();
+        if (!em) continue;
+        if (emailFilter && em !== emailFilter) continue;
+        counts[em] = (counts[em] || 0) + 1;
+      }
+    })
+  );
+  const requesters = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([em, count]) => ({ email: em, count }));
+  return { ok: true, requesters, days };
+}
+
 async function listBoardItems({ category, search, status, cursor, limit = 25, role, email }) {
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
@@ -894,7 +970,7 @@ export default async function handler(req, res) {
 
     // Access gate: data actions require a valid token issued by verify-email.
     // The token carries the signed-in email + role, which scopes what they see.
-    const GATED = new Set(['dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request']);
+    const GATED = new Set(['dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
     let authRole = 'admin';
     let authEmail = null;
     if (GATED.has(action)) {
@@ -921,6 +997,9 @@ export default async function handler(req, res) {
         break;
       case 'recent-submissions':
         result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: authRole, email: authEmail });
+        break;
+      case 'top-requesters':
+        result = await topRequesters({ role: authRole, email: authEmail, days: params.days ? Number(params.days) : 7, top: params.top ? Number(params.top) : 3 });
         break;
       case 'list-board-items':
         result = await listBoardItems({

@@ -38,10 +38,10 @@
   <div class="card">
     <img class="logo" src="logo.svg" alt="The Sunny" />
     <h1>Request Hub</h1>
-    <p class="sub">Centralized Request Management System for The Sunny Hotel</p>
+    <p class="sub">Centralized Marketing Request System</p>
     <form id="gate-form" autocomplete="on">
       <label for="email">Work email</label>
-      <input type="email" id="email" name="email" placeholder="you@lemonadehospitality.com" required autocomplete="email" />
+      <input type="email" id="email" name="email" placeholder="e.g. you@thesunnyhotel.com" required autocomplete="email" />
       <button type="submit" id="go">Continue</button>
     </form>
     <div class="msg" id="msg"></div>
@@ -51,8 +51,57 @@
 <script>
 const API = '/api/monday';
 
-// If already signed in, skip the gate.
-try { if (localStorage.getItem('rh_token')) location.replace('app'); } catch (e) {}
+// Clear any saved session and stay on the gate.
+function clearSession() {
+  try {
+    localStorage.removeItem('rh_token');
+    localStorage.removeItem('rh_email');
+    localStorage.removeItem('rh_role');
+  } catch (e) {}
+}
+
+// A token is "b64.sig" whose b64 decodes to "email|role|exp" (exp last).
+// The "open" sentinel means the server gate is turned off. We only check the
+// expiry client-side here — the server/middleware still verifies the signature.
+function tokenLooksValid(token) {
+  if (!token) return false;
+  if (token === 'open') return true;
+  try {
+    if (!token.includes('.')) return false;
+    const b64 = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = atob(b64);
+    const parts = payload.split('|');
+    const exp = Number(parts[parts.length - 1]);
+    return Boolean(exp) && exp > Date.now();
+  } catch (e) {
+    return false;
+  }
+}
+
+// If already signed in, skip the gate — but never redirect blindly. A stale
+// localStorage token (expired, or with a session cookie the server rejects)
+// used to bounce forever between "/" and "/app". Guard against both:
+//   1. Drop expired/garbage tokens client-side and show the gate.
+//   2. One-shot loop-breaker: if we redirected to /app moments ago and landed
+//      back here, the cookie was rejected — clear the token and show the gate.
+(function () {
+  let token = null;
+  try { token = localStorage.getItem('rh_token'); } catch (e) {}
+  if (!token) return;                 // no token → show the gate
+  if (!tokenLooksValid(token)) { clearSession(); return; }
+
+  try {
+    const bouncedAt = Number(sessionStorage.getItem('rh_redirecting') || 0);
+    if (bouncedAt && (Date.now() - bouncedAt) < 5000) {
+      sessionStorage.removeItem('rh_redirecting');
+      clearSession();
+      return;                         // came straight back from /app → gate rejected us
+    }
+    sessionStorage.setItem('rh_redirecting', String(Date.now()));
+  } catch (e) {}
+
+  location.replace('app');
+})();
 
 const form = document.getElementById('gate-form');
 const msg = document.getElementById('msg');

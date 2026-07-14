@@ -187,9 +187,9 @@
 
       <section class="view active" id="view-dashboard">
         <h1 class="welcome serif">Welcome back.</h1>
-        <p class="welcome-sub">Centralized Request Management System for The Sunny Hotel</p>
+        <p class="welcome-sub">Centralized Marketing Request System</p>
         <div class="kpis">
-          <div class="kpi open"><div class="k-label">Open Requests</div><div class="k-num" id="kpi-open">—</div><div class="k-foot">Across all four boards</div></div>
+          <div class="kpi open"><div class="k-label">Open Requests</div><div class="k-num" id="kpi-open">—</div><div class="k-foot">Across all request types</div></div>
           <div class="kpi overdue"><div class="k-label">Overdue</div><div class="k-num" id="kpi-overdue">—</div><div class="k-foot">Past their due date</div></div>
           <div class="kpi dueweek"><div class="k-label">Due This Week</div><div class="k-num" id="kpi-dueweek">—</div><div class="k-foot">Next 7 days</div></div>
           <div class="kpi completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-done30">—</div><div class="k-foot">Last 30 days</div></div>
@@ -212,10 +212,15 @@
             <div class="panel-sub">Latest requests from our team</div>
             <div id="feed"><div class="loading">Loading…</div></div>
           </div>
-          <div class="panel">
+          <div class="panel" id="qa-panel">
             <div class="panel-head" id="qa-head"><h3>Quick Actions</h3></div>
             <div class="panel-sub">Start a new request</div>
             <div id="quick-actions"></div>
+          </div>
+          <div class="panel" id="topreq-panel" style="display:none">
+            <div class="panel-head" id="topreq-head"><h3>Top Requesters This Week</h3></div>
+            <div class="panel-sub">Most requests submitted in the last 7 days</div>
+            <div id="top-requesters"><div class="loading">Loading…</div></div>
           </div>
         </div>
       </section>
@@ -274,13 +279,14 @@ const ICONS = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M13 8l-4 5h3l-1 4"/></svg>',
   list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
 };
 function sunMark() {
   const rays = Array.from({length: 8}, (_, i) => { const a=(i*Math.PI)/4, x1=12+Math.cos(a)*7.5, y1=12+Math.sin(a)*7.5, x2=12+Math.cos(a)*10.5, y2=12+Math.sin(a)*10.5;
     return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none"/>${rays}</svg>`;
 }
-const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palette', print: 'printer' };
+const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palette', print: 'printer', beo: 'menu' };
 
 const TEAMS = ['Sales','Front Office','Rooms','F&B','Pool & Beach','Engineering','Marketing','Ownership','Brand'];
 const CATEGORIES = {
@@ -333,6 +339,28 @@ const CATEGORIES = {
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'neededBy', label: 'Needed By', type: 'date', required: true },
   ] },
+  beo: { label: 'Banquet Event Order', autoName: true,
+    note: 'Please submit BEO requests by Friday at 10am for the BEO package that goes out the following Monday at 3pm.',
+    fields: [
+    { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
+    { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
+    { key: 'department', label: 'Department', type: 'text', required: true },
+    { key: 'contact', label: 'Contact', type: 'text', required: true },
+    { key: 'eventName', label: 'Event Name', type: 'text', required: true },
+    { key: 'eventDate', label: 'Date', type: 'date', required: true },
+    { key: 'location', label: 'Location of Event', type: 'text', required: true },
+    { key: 'guestCount', label: 'Guest Count', type: 'number', required: true },
+    { key: 'startTime', label: 'Event Start Time', type: 'text', required: true },
+    { key: 'endTime', label: 'Event End Time', type: 'text', required: true },
+    { key: 'typeOfEvent', label: 'Type of Event', type: 'select', options: ['Breakfast','Lunch','Dinner','Reception','Meeting No F&B','Meeting With F&B','Other'], required: true },
+    { key: 'serveTimes', label: 'Serve Times (ex. Coffee Station 9am, Lunch 12pm)', type: 'text', required: true },
+    { key: 'setUpStyle', label: 'Set Up Style (ex. Classroom, Conference, Theater)', type: 'text', required: true },
+    { key: 'menuItems', label: 'List Menu Items', type: 'textarea', full: true, required: true },
+    { key: 'beverages', label: 'List Beverages', type: 'textarea', full: true, required: true },
+    { key: 'avEquipment', label: 'List AV Equipment Needed', type: 'textarea', full: true },
+    { key: 'miscServices', label: 'List Miscellaneous Services Needed', type: 'textarea', full: true },
+    { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
+  ] },
 };
 
 const COLUMN_LABELS = {
@@ -340,12 +368,14 @@ const COLUMN_LABELS = {
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', text_mm3yghj8: 'Department/Role', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
   color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', text_mm57mzz2: 'Department/Outlet', date_mm57j8b: 'Ideal Due Date',
   color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
+  color_mm09fjad: 'Status', date_mm58gm0p: 'Event Date', multi_selectoxjp1hu4: 'Type of Event', short_textimp5o09l: 'Guest Count', short_textgjvu15x0: 'Location',
 };
 const STATUS_OPTIONS = {
   procurement: ['New Request','Sourcing','Awaiting Design','Ready to Order','Ordered','In Transit','Delivered'],
   uniform: ['New Request','Sourcing','Ordered','In Transit','Delivered'],
   creative: ['New','Assigned','Working On It','Pending Review','Completed','Stuck'],
   print: ['New','In Progress','Printed'],
+  beo: ['Working on it','Done','Stuck'],
 };
 function statusColor(label) {
   const s = (label || '').toLowerCase();
@@ -375,6 +405,7 @@ function fmtWhen(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(
 document.getElementById('nav-toggle').innerHTML = ICONS.menu;
 document.getElementById('recent-head').insertAdjacentHTML('afterbegin', ICONS.clock);
 document.getElementById('qa-head').insertAdjacentHTML('afterbegin', ICONS.bolt);
+document.getElementById('topreq-head').insertAdjacentHTML('afterbegin', ICONS.users);
 (function () { const em = getEmail(); document.getElementById('user-email').textContent = em || 'Signed in';
   document.getElementById('user-avatar').textContent = (em ? em.replace(/[^a-zA-Z]/g,'').slice(0,2).toUpperCase() : '–') || '–'; })();
 document.getElementById('signout').addEventListener('click', signOut);
@@ -384,6 +415,11 @@ if (ROLE === 'requester') {
   const foots = document.querySelectorAll('#view-dashboard .kpi .k-foot');
   if (foots[0]) foots[0].textContent = 'Your open requests';
   if (foots[3]) foots[3].textContent = 'Your completed (30d)';
+}
+// Admin dashboard: drop Quick Actions (admins manage, not submit) and show Top Requesters instead.
+if (ROLE === 'admin') {
+  const qp = document.getElementById('qa-panel'); if (qp) qp.style.display = 'none';
+  const tp = document.getElementById('topreq-panel'); if (tp) tp.style.display = '';
 }
 
 // ---- Navigation (role-aware) ----
@@ -396,6 +432,7 @@ const NAV = ROLE === 'admin' ? [
   { id: 'uniform', label: 'Uniform', icon: 'shirt', view: 'track', cat: 'uniform' },
   { id: 'creative', label: 'Creative', icon: 'palette', view: 'track', cat: 'creative' },
   { id: 'print', label: 'Print', icon: 'printer', view: 'track', cat: 'print' },
+  { id: 'beo', label: 'Banquet Event Order', icon: 'menu', view: 'track', cat: 'beo' },
 ] : [
   { section: 'Overview' },
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
@@ -427,15 +464,17 @@ function navTo(n) {
 }
 
 // ---- Dashboard ----
+const BAR_PALETTE = ['#ffc03f', '#3d6395', '#006eb6', '#1f8a5b', '#092e36', '#c58a2a', '#5b8fb0'];
 function renderBars(id, rows) {
   const el = document.getElementById(id); if (!el) return;
   rows = (rows || []).filter(r => r[1] > 0);
   if (!rows.length) { el.innerHTML = '<div class="empty">Nothing open right now.</div>'; return; }
   const max = Math.max(1, ...rows.map(r => r[1]));
-  el.innerHTML = rows.map(([label, val]) => {
+  el.innerHTML = rows.map(([label, val], i) => {
     const pct = Math.round((val / max) * 100);
+    const color = BAR_PALETTE[i % BAR_PALETTE.length];
     return '<div class="bar-row"><div class="b-label" title="'+esc(label)+'">'+esc(label)+'</div>'
-      + '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+      + '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
       + '<div class="b-val">'+val+'</div></div>';
   }).join('');
 }
@@ -445,13 +484,14 @@ async function loadDashboard() {
   document.getElementById('chart-board').innerHTML = '<div class="loading">Loading…</div>';
   document.getElementById('chart-team').innerHTML = '<div class="loading">Loading…</div>';
   feed.innerHTML = '<div class="loading">Loading…</div>';
+  if (ROLE === 'admin') loadTopRequesters();
   try {
     const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 12 }) ]);
     document.getElementById('kpi-open').textContent = counts.openTotal;
     document.getElementById('kpi-overdue').textContent = counts.overdue;
     document.getElementById('kpi-dueweek').textContent = counts.dueThisWeek;
     document.getElementById('kpi-done30').textContent = counts.completed30d;
-    const boardOrder = ['procurement','uniform','creative','print'];
+    const boardOrder = ['procurement','uniform','creative','print','beo'];
     renderBars('chart-board', boardOrder.map(k => [CATEGORIES[k] ? CATEGORIES[k].label : k, counts.openByBoard[k] || 0]));
     renderBars('chart-team', Object.entries(counts.openByTeam || {}).sort((a,b) => b[1]-a[1]));
     if (!recent.items.length) { feed.innerHTML = '<div class="empty">No submissions yet.</div>'; return; }
@@ -479,6 +519,30 @@ async function loadMyRequests() {
           <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(fmtWhen(it.createdAt))}</span></div></a>`;
     }).join('');
   } catch (e) { feed.innerHTML = '<div class="empty">Could not load: '+esc(e.message)+'</div>'; }
+}
+
+function prettyName(email) {
+  const local = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();
+  return local.replace(/\b\w/g, c => c.toUpperCase()) || email;
+}
+function nameInitials(email) {
+  const n = prettyName(email).split(' ').filter(Boolean);
+  return ((n[0] && n[0][0] || '') + (n[1] && n[1][0] || '')).toUpperCase() || (email[0] || '?').toUpperCase();
+}
+async function loadTopRequesters() {
+  const el = document.getElementById('top-requesters'); if (!el) return;
+  el.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const res = await callApi({ action: 'top-requesters', days: 7, top: 3 });
+    if (!res.requesters || !res.requesters.length) { el.innerHTML = '<div class="empty">No requests in the last 7 days.</div>'; return; }
+    el.innerHTML = res.requesters.map(r =>
+      '<div class="sub-row" style="display:flex;align-items:center;gap:12px">'
+      + '<span class="avatar" style="width:30px;height:30px;font-size:11px">' + esc(nameInitials(r.email)) + '</span>'
+      + '<div style="min-width:0;flex:1"><div class="s-name" style="margin-bottom:2px">' + esc(prettyName(r.email)) + '</div>'
+      + '<div style="color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.email) + '</div></div>'
+      + '<span class="tag">' + r.count + (r.count === 1 ? ' request' : ' requests') + '</span></div>'
+    ).join('');
+  } catch (e) { el.innerHTML = '<div class="empty">Could not load: ' + esc(e.message) + '</div>'; }
 }
 
 const qa = document.getElementById('quick-actions');
@@ -511,6 +575,7 @@ function fieldControl(f) {
 function renderForm() {
   const cfg = CATEGORIES[currentCat]; const form = document.getElementById('request-form');
   let html = '<div class="grid2">';
+  if (cfg.note) html += '<div style="grid-column:1 / -1; background:var(--sand); border:1px solid var(--line-2); border-radius:9px; padding:11px 14px; font-size:12.5px; color:#7a6a2a; margin-bottom:4px;">'+esc(cfg.note)+'</div>';
   cfg.fields.forEach(f => {
     const full = f.full || f.type === 'textarea' || f.type === 'outletqty';
     const wrapStyle = (full ? 'grid-column:1 / -1;' : '') + (f.showIf ? 'display:none;' : '');
@@ -550,6 +615,13 @@ function buildPrintName(fields) {
   if (fields.printType === 'Other') { const d = (fields.details||'').trim(); return d ? (d.length>60?d.slice(0,60)+'…':d) : 'Print request'; }
   return 'Print request';
 }
+function buildBeoName(fields) {
+  const name = (fields.eventName || '').trim();
+  const date = (fields.eventDate || '').trim();
+  if (name && date) return name + ' — ' + date;
+  return name || 'Banquet Event Order';
+}
+const AUTO_NAMERS = { print: buildPrintName, beo: buildBeoName };
 document.getElementById('request-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target; const cfg = CATEGORIES[currentCat]; const btn = document.getElementById('submit-btn');
@@ -575,7 +647,7 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
     if (!wrap || wrap.style.display === 'none') continue;
     if (f.required && (fields[f.key] === undefined || (Array.isArray(fields[f.key]) && !fields[f.key].length))) { toast('Please complete: ' + f.label, true); return; }
   }
-  if (cfg.autoName && !fields.name) fields.name = buildPrintName(fields);
+  if (cfg.autoName && !fields.name) { const namer = AUTO_NAMERS[currentCat]; fields.name = namer ? namer(fields) : (cfg.label + ' Request'); }
   if (!fields.name) { toast('Please add a title.', true); return; }
 
   // Read any uploaded files to base64, with a size cap (Vercel ~4.5MB request limit).

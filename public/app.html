@@ -316,6 +316,8 @@ const CATEGORIES = {
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true },
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true },
+    { key: 'requiresProcurement', label: 'Requires procurement?', type: 'select', options: ['No','Yes'], required: true },
+    { key: 'procurementNotes', label: 'What needs to be procured?', type: 'textarea', full: true, showIf: { field: 'requiresProcurement', equals: 'Yes' } },
     { key: 'referenceLinks', label: 'Reference Links (paste URLs, one per line — best for large files)', type: 'textarea', full: true },
     { key: 'files', label: 'Reference Files (images or PDFs, ~3 MB total)', type: 'file', full: true },
   ] },

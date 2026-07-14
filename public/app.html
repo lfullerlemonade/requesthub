@@ -384,6 +384,8 @@ function statusColor(label) {
   if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'#e2eef7', fg:'var(--pool)' };
   return { bg:'var(--sand)', fg:'#7a6a2a' }; // new / active on sand
 }
+// Mirrors the server's "completed" bucket so the dashboard feed can hide done work.
+function isDoneStatus(label) { return /(complete|received|delivered|printed|live|\bdone\b|move to dam)/.test((label || '').toLowerCase()); }
 
 async function callApi(payload) {
   const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({ token: getToken() }, payload)) });
@@ -488,7 +490,7 @@ async function loadDashboard() {
   feed.innerHTML = '<div class="loading">Loading…</div>';
   if (ROLE === 'admin') loadTopRequesters();
   try {
-    const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 12 }) ]);
+    const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 30 }) ]);
     document.getElementById('kpi-open').textContent = counts.openTotal;
     document.getElementById('kpi-overdue').textContent = counts.overdue;
     document.getElementById('kpi-dueweek').textContent = counts.dueThisWeek;
@@ -496,8 +498,9 @@ async function loadDashboard() {
     const boardOrder = ['procurement','uniform','creative','print','beo'];
     renderBars('chart-board', boardOrder.map(k => [CATEGORIES[k] ? CATEGORIES[k].label : k, counts.openByBoard[k] || 0]));
     renderBars('chart-team', Object.entries(counts.openByTeam || {}).sort((a,b) => b[1]-a[1]));
-    if (!recent.items.length) { feed.innerHTML = '<div class="empty">No submissions yet.</div>'; return; }
-    feed.innerHTML = recent.items.map(it => { const c = statusColor(it.status);
+    const active = (recent.items || []).filter(it => !isDoneStatus(it.status)).slice(0, 12);
+    if (!active.length) { feed.innerHTML = '<div class="empty">No active requests right now.</div>'; return; }
+    feed.innerHTML = active.map(it => { const c = statusColor(it.status);
       return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
         <div class="s-name">${esc(it.name)}</div>
         <div class="s-tags"><span class="tag">${esc(it.category)}</span>

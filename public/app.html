@@ -235,6 +235,10 @@
       <section class="view" id="view-myrequests">
         <h1 class="welcome serif" style="font-size:28px">My requests</h1>
         <p class="welcome-sub">Everything you've submitted, and where each one stands</p>
+        <div class="table-controls" style="margin-bottom:16px">
+          <button class="btn secondary" id="mr-tab-open">Open</button>
+          <button class="btn secondary" id="mr-tab-done">Completed</button>
+        </div>
         <div class="panel"><div id="my-feed"><div class="loading">Loading…</div></div></div>
       </section>
 
@@ -448,6 +452,7 @@ if (ROLE === 'admin') {
 const NAV = ROLE === 'admin' ? [
   { section: 'Overview' },
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', view: 'dashboard' },
+  { id: 'myrequests', label: 'My Requests', icon: 'list', view: 'myrequests' },
   { id: 'submit', label: 'Submit Request', icon: 'plus', view: 'submit' },
   { section: 'Request Types' },
   { id: 'creative', label: 'Creative', icon: 'palette', view: 'track', cat: 'creative' },
@@ -531,22 +536,46 @@ async function loadDashboard() {
     }).join('');
   } catch (e) { feed.innerHTML = '<div class="empty">Could not load: '+esc(e.message)+'</div>'; }
 }
-// ---- My Requests (requester view) ----
+// ---- My Requests (the signed-in user's own submissions, split Open / Completed) ----
+let myReqTab = 'open';
+let myReqData = { open: [], done: [] };
+function myReqRow(it) { const c = statusColor(it.status);
+  return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
+    <div class="s-name">${esc(it.name)}</div>
+    <div class="s-tags"><span class="tag">${esc(it.category)}</span>
+      ${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}
+      <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(fmtWhen(it.createdAt))}</span></div></a>`;
+}
+function renderMyReq() {
+  const feed = document.getElementById('my-feed');
+  const openBtn = document.getElementById('mr-tab-open'), doneBtn = document.getElementById('mr-tab-done');
+  openBtn.textContent = 'Open (' + myReqData.open.length + ')';
+  doneBtn.textContent = 'Completed (' + myReqData.done.length + ')';
+  [openBtn, doneBtn].forEach(b => { b.style.background = ''; b.style.color = ''; });
+  const active = myReqTab === 'done' ? doneBtn : openBtn;
+  active.style.background = 'var(--seaweed)'; active.style.color = 'var(--foam)';
+  const list = myReqTab === 'done' ? myReqData.done : myReqData.open;
+  if (!list.length) { feed.innerHTML = '<div class="empty">' + (myReqTab === 'done' ? 'No completed requests yet.' : 'No open requests right now.') + '</div>'; return; }
+  feed.innerHTML = list.map(myReqRow).join('');
+}
 async function loadMyRequests() {
   const feed = document.getElementById('my-feed');
   feed.innerHTML = '<div class="loading">Loading…</div>';
   try {
-    const recent = await callApi({ action: 'recent-submissions', limit: 100 });
-    if (!recent.items.length) { feed.innerHTML = '<div class="empty">You haven\'t submitted any requests yet. Use “Submit a Request” to get started.</div>'; return; }
-    feed.innerHTML = recent.items.map(it => { const c = statusColor(it.status);
-      return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
-        <div class="s-name">${esc(it.name)}</div>
-        <div class="s-tags"><span class="tag">${esc(it.category)}</span>
-          ${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}
-          <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(fmtWhen(it.createdAt))}</span></div></a>`;
-    }).join('');
+    const recent = await callApi({ action: 'recent-submissions', limit: 200, mine: true });
+    const items = recent.items || [];
+    myReqData = { open: items.filter(it => !isDoneStatus(it.status)), done: items.filter(it => isDoneStatus(it.status)) };
+    if (!items.length) {
+      document.getElementById('mr-tab-open').textContent = 'Open (0)';
+      document.getElementById('mr-tab-done').textContent = 'Completed (0)';
+      feed.innerHTML = '<div class="empty">You haven\'t submitted any requests yet. Use “Submit a Request” to get started.</div>';
+      return;
+    }
+    renderMyReq();
   } catch (e) { feed.innerHTML = '<div class="empty">Could not load: '+esc(e.message)+'</div>'; }
 }
+document.getElementById('mr-tab-open').addEventListener('click', () => { myReqTab = 'open'; renderMyReq(); });
+document.getElementById('mr-tab-done').addEventListener('click', () => { myReqTab = 'done'; renderMyReq(); });
 
 function prettyName(email) {
   const local = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();

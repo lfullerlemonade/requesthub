@@ -617,6 +617,7 @@ function applyConditions() {
     if (sf) { const c = form.querySelector('[name="'+sf+'"]'); show = show && !!(c && c.value === el.getAttribute('data-showif-eq')); }
     const hf = el.getAttribute('data-hideif-field');
     if (hf) { const c = form.querySelector('[name="'+hf+'"]'); show = show && !(c && c.value === el.getAttribute('data-hideif-eq')); }
+    el.style.display = show ? '' : 'none';
     // Disable inputs inside hidden conditional fields, so the browser's native
     // "required" validation can't silently block submit on a field it can't
     // focus (display:none). This was the bug that broke the Print form.

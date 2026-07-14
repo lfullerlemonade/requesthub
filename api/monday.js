@@ -181,6 +181,24 @@ const SOCIAL_BOARD = {
 };
 const CREATIVE_SOCIAL_LINK_COL = 'link_mm58hayh'; // "Linked Social Post" on the Creative board
 
+// Business Card is a Creative content type that routes to its own board
+// (18127686590) with a distinct field set. That board tracks state via groups,
+// so it has no status column. Requester email is used only for the confirmation
+// email (there's no requester column to store it on).
+const BUSINESS_CARD = {
+  label: 'Business Card',
+  boardId: 18127686590,
+  group: 'topics', // "Incoming responses"
+  fields: [
+    { key: 'personRequesting', column: 'short_textenbeu4l1', kind: 'text' },
+    { key: 'jobTitle', column: 'short_text7j3cp6ed', kind: 'text' },
+    { key: 'department', column: 'short_textoy4j5uni', kind: 'text' },
+    { key: 'cardEmail', column: 'email65t3k68u', kind: 'email' },   // email printed on the card
+    { key: 'directPhone', column: 'phones5y6s7um', kind: 'phone' },
+    { key: 'mobilePhone', column: 'phonecb45nl4h', kind: 'phone' },
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // Confirmation email (best-effort). If EMAIL_WEBHOOK_URL is set, we POST the
 // message to it after a request is created. Point that env var at a Microsoft
@@ -208,6 +226,8 @@ const EMAIL_LABELS = {
   ccEmail: 'Also notify', team: 'Team',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
   socialPostDate: 'Date to post',
+  cardholderName: 'Full name (on card)', personRequesting: 'Person requesting', jobTitle: 'Job title',
+  cardEmail: 'Email (on card)', directPhone: 'Direct phone', mobilePhone: 'Mobile phone',
   contact: 'Contact', eventName: 'Event name', eventDate: 'Event date',
   location: 'Location', guestCount: 'Guest count', startTime: 'Start time', endTime: 'End time',
   typeOfEvent: 'Type of event', serveTimes: 'Serve times', setUpStyle: 'Set-up style',
@@ -378,6 +398,11 @@ function buildColumnValues(cfg, fields) {
       case 'numbers':
         cv[f.column] = String(raw);
         break;
+      case 'phone': {
+        const digits = String(raw).replace(/[^\d]/g, '');
+        if (digits) cv[f.column] = { phone: digits, countryShortName: 'US' };
+        break;
+      }
       case 'status':
         cv[f.column] = { label: String(raw) };
         break;
@@ -539,10 +564,42 @@ async function verifyEmailAction({ email }) {
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
+// Business Card requests route to the Business Card board (18127686590). The
+// requester's own email drives the confirmation; the cardholder's details are
+// written to the board. This board has no status column (it tracks via groups).
+async function createBusinessCardRequest(fields, { role, authEmail } = {}) {
+  const cfg = BUSINESS_CARD;
+  const f = { ...(fields || {}) };
+  if (role === 'requester' && authEmail) f.email = authEmail; // confirmation goes to the requester
+  const name = f.cardholderName || f.name || 'Business Card Request';
+  const columnValues = buildColumnValues(cfg, f);
+  const data = await mondayQuery(
+    `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
+       create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+     }`,
+    { boardId: String(cfg.boardId), groupId: cfg.group || null, itemName: name, columnValues: JSON.stringify(columnValues) }
+  );
+  const item = data.create_item;
+  const result = {
+    ok: true, category: 'creative', board: cfg.label, boardId: cfg.boardId,
+    itemId: item.id, itemName: item.name, url: itemUrl(cfg.boardId, item.id),
+  };
+  const emailOutcome = await maybeSendConfirmation('businesscard', cfg, f, item);
+  result.emailSent = Boolean(emailOutcome.sent);
+  if (emailOutcome.error) result.emailError = emailOutcome.error;
+  await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
+  return result;
+}
+
 async function createRoutedRequest({ category, fields, role, authEmail }) {
+  const f0 = { ...(fields || {}) };
+  // Business Card is a Creative content type that routes to its own board.
+  if (category === 'creative' && String(f0.contentType || '').toLowerCase() === 'business card') {
+    return createBusinessCardRequest(f0, { role, authEmail });
+  }
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
-  const f = { ...(fields || {}) };
+  const f = f0;
   // Requesters can only file requests as themselves: force the requester-email
   // column to their signed-in identity so it always shows under "My Requests".
   if (role === 'requester' && authEmail && cfg.emailFieldKey) {

@@ -317,7 +317,8 @@ const CATEGORIES = {
   creative: { label: 'Creative', fields: [
     { key: 'name', label: 'Project Name', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Copywriting','Deck','Other'] },
+    { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Social Media','Copywriting','Deck','Other'] },
+    { key: 'socialPostDate', label: 'Date to Post', type: 'date', showIf: { field: 'contentType', equals: 'Social Media' }, required: true },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true },
@@ -674,7 +675,7 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     const res = await callApi({ action: 'create-routed-request', category: currentCat, fields });
-    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.filesAttached ? ' · ' + res.filesAttached + ' file(s) attached' : '') + (res.emailSent ? ' · confirmation emailed' : ''));
+    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.filesAttached ? ' · ' + res.filesAttached + ' file(s) attached' : '') + (res.socialUrl ? ' · social post created' : '') + (res.emailSent ? ' · confirmation emailed' : ''));
     renderForm();
   } catch (err) { toast('Submit failed: ' + err.message, true); }
   finally { const b = document.getElementById('submit-btn'); if (b) { b.disabled = false; b.textContent = 'Submit ' + cfg.label + ' Request'; } }

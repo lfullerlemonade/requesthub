@@ -136,7 +136,6 @@ const BOARDS = {
       { key: 'team', column: 'dropdown_mm58q4be', kind: 'dropdown' },
       { key: 'requesterEmail', column: 'email_mm58rj16', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm58yhy4', kind: 'email' },   // "Also Notify" — optional extra recipient
-      { key: 'department', column: 'short_textjwmf87g1', kind: 'text' },
       { key: 'contact', column: 'short_textldvm5txi', kind: 'text' },
       { key: 'eventName', column: 'short_textaromenrh', kind: 'text' },
       { key: 'eventDate', column: 'date_mm58gm0p', kind: 'date' },

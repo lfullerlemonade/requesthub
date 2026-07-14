@@ -159,6 +159,7 @@ const EMAIL_LABELS = {
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
   ccEmail: 'Also notify', team: 'Team',
+  requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
 };
 
 function getRequesterEmail(fields) {
@@ -550,6 +551,49 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
     result.filesAttached = up.filter((r) => r.ok).length;
     const failed = up.filter((r) => !r.ok);
     if (failed.length) result.fileErrors = failed.map((x) => `${x.name}: ${x.error}`);
+  }
+
+  // Creative → Procurement: when a creative request also needs procurement,
+  // spin up a matching, trackable item on the Procurement board and link them.
+  if (category === 'creative' && String(f.requiresProcurement || '').toLowerCase() === 'yes') {
+    const CREATIVE_LINK_COL = 'board_relation_mm58r1mq'; // "Linked Procurement" on the Creative board
+    try {
+      const pcfg = BOARDS.procurement;
+      const creativeUrl = itemUrl(cfg.boardId, item.id);
+      const descParts = [];
+      if (f.projectDescription) descParts.push(String(f.projectDescription));
+      if (f.procurementNotes) descParts.push('Needs procured: ' + String(f.procurementNotes));
+      descParts.push('Linked creative request: ' + creativeUrl);
+      const pf = {
+        team: f.team,
+        requesterEmail: f.email,
+        ccEmail: f.ccEmail,
+        dueDate: f.idealDueDate,
+        itemDescription: f.procurementNotes || f.projectDescription || '',
+        notes: descParts.join('\n\n'),
+      };
+      const pcv = buildColumnValues(pcfg, pf);
+      const pdata = await mondayQuery(
+        `mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
+           create_item (board_id: $boardId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+         }`,
+        { boardId: String(pcfg.boardId), itemName: item.name, columnValues: JSON.stringify(pcv) }
+      );
+      const procItem = pdata.create_item;
+      result.procurementItemId = procItem.id;
+      result.procurementUrl = itemUrl(pcfg.boardId, procItem.id);
+      // Native two-way link (reflection auto-fills on the Procurement side). Best-effort.
+      try {
+        await mondayQuery(
+          `mutation ($b: ID!, $i: ID!, $cv: JSON!) { change_multiple_column_values (board_id: $b, item_id: $i, column_values: $cv) { id } }`,
+          { b: String(cfg.boardId), i: String(item.id), cv: JSON.stringify({ [CREATIVE_LINK_COL]: { item_ids: [Number(procItem.id)] } }) }
+        );
+        result.linked = true;
+      } catch (e) { result.linkWarning = 'Items created; native link not set: ' + e.message; }
+      await logAccess(f.email || 'unknown', 'Request submitted', pcfg.label, procItem.name + ' (from Creative)');
+    } catch (e) {
+      result.procurementError = 'Creative request created, but the linked procurement item failed: ' + e.message;
+    }
   }
 
   // Best-effort confirmation email — never block or fail the submission on it.

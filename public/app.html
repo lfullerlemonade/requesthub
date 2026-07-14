@@ -464,7 +464,10 @@ function navTo(n) {
 }
 
 // ---- Dashboard ----
-const BAR_PALETTE = ['#ffc03f', '#3d6395', '#006eb6', '#1f8a5b', '#092e36', '#c58a2a', '#5b8fb0'];
+// Sunny brand blue ramp, dark → light. One color family reads as a cohesive
+// story; since bars are volume-sorted, darker = higher doubles as a rank cue.
+// Anchored by Seaweed, Pool Blue (#006EB6), and Sky (#C7DBF4).
+const BAR_PALETTE = ['#08344a', '#0a5079', '#006eb6', '#3080c0', '#4e97cc', '#72b1da', '#9cc6e7', '#c7dbf4'];
 function renderBars(id, rows) {
   const el = document.getElementById(id); if (!el) return;
   rows = (rows || []).filter(r => r[1] > 0);

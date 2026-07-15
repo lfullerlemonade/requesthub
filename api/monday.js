@@ -936,10 +936,23 @@ async function recentSubmissions({ limit = 15, role, email, mine = false } = {})
   const all = [];
   await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
-      const cols = emailFilter ? [cfg.statusColumn, cfg.emailColumn] : [cfg.statusColumn];
-      const qp = emailFilter
-        ? { rules: [{ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' }
-        : null;
+      // For "My Requests" (mine) we also surface requests where this person is
+      // the "Also Notify" (cc) recipient — tagged shared:true. The plain
+      // requester dashboard feed stays scoped to their own requests only.
+      const ccCol = (cfg.fields.find((f) => f.key === 'ccEmail') || {}).column || null;
+      const includeShared = Boolean(mine && ccCol);
+      const cols = emailFilter
+        ? [cfg.statusColumn, cfg.emailColumn, ...(includeShared ? [ccCol] : [])]
+        : [cfg.statusColumn];
+      let qp = null;
+      if (includeShared) {
+        qp = { rules: [
+          { column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' },
+          { column_id: ccCol, compare_value: [emailFilter], operator: 'contains_text' },
+        ], operator: 'or' };
+      } else if (emailFilter) {
+        qp = { rules: [{ column_id: cfg.emailColumn, compare_value: [emailFilter], operator: 'contains_text' }], operator: 'and' };
+      }
       const query = `
         query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
           boards (ids: [$boardId]) {
@@ -952,7 +965,11 @@ async function recentSubmissions({ limit = 15, role, email, mine = false } = {})
       for (const it of data.boards[0].items_page.items) {
         const byId = {};
         for (const c of it.column_values) byId[c.id] = c.text || '';
-        if (emailFilter && (byId[cfg.emailColumn] || '').trim().toLowerCase() !== emailFilter) continue;
+        const reqEmail = (byId[cfg.emailColumn] || '').trim().toLowerCase();
+        const ccVal = ccCol ? (byId[ccCol] || '').trim().toLowerCase() : '';
+        const isMine = reqEmail === emailFilter;
+        const isShared = includeShared && !isMine && ccVal === emailFilter;
+        if (emailFilter && !isMine && !isShared) continue; // near-miss safeguard
         all.push({
           itemId: it.id,
           name: it.name,
@@ -961,6 +978,8 @@ async function recentSubmissions({ limit = 15, role, email, mine = false } = {})
           status: byId[cfg.statusColumn] || '',
           createdAt: it.created_at,
           url: itemUrl(cfg.boardId, it.id),
+          shared: isShared,
+          requestedBy: byId[cfg.emailColumn] || '',
         });
       }
     })
@@ -992,6 +1011,8 @@ async function recentSubmissions({ limit = 15, role, email, mine = false } = {})
           status: (it.group && it.group.id === BC_DONE_GROUP_ID) ? 'Completed' : '',
           createdAt: it.created_at,
           url: itemUrl(BUSINESS_CARD.boardId, it.id),
+          shared: false,
+          requestedBy: byId[BC_REQUESTER_EMAIL_COL] || '',
         });
       }
     } catch (e) { /* best-effort — never fail My Requests on the Business Card scan */ }

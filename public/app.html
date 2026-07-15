@@ -276,7 +276,25 @@ const API = '/api/monday';
 // ---- Auth guard ----
 function getToken() { try { return localStorage.getItem('rh_token'); } catch (e) { return null; } }
 function getEmail() { try { return localStorage.getItem('rh_email') || ''; } catch (e) { return ''; } }
-function getRole() { try { return localStorage.getItem('rh_role') === 'requester' ? 'requester' : 'admin'; } catch (e) { return 'admin'; } }
+// Role comes straight from the signed token payload (email|role|exp) so the
+// displayed view can't drift from what the server issued. Fails closed to
+// 'requester' when we can't positively read 'admin' (least privilege), which
+// also self-heals stale sessions that predate the separate rh_role key.
+function roleFromToken(token) {
+  if (!token) return null;
+  if (token === 'open') return 'admin';            // server gate off → full access
+  try {
+    if (!token.includes('.')) return null;
+    const b64 = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const role = atob(b64).split('|')[1];
+    return role === 'admin' ? 'admin' : 'requester';
+  } catch (e) { return null; }
+}
+function getRole() {
+  const r = roleFromToken(getToken());
+  if (r) { try { localStorage.setItem('rh_role', r); } catch (e) {} return r; }  // resync cached key
+  try { return localStorage.getItem('rh_role') === 'admin' ? 'admin' : 'requester'; } catch (e) { return 'requester'; }
+}
 function signOut() { try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); localStorage.removeItem('rh_role'); } catch (e) {} location.replace('/'); }
 if (!getToken()) location.replace('/');
 const ROLE = getRole();

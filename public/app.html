@@ -246,6 +246,7 @@
         <div class="table-controls" style="margin-bottom:16px">
           <button class="btn secondary" id="mr-tab-open">Open</button>
           <button class="btn secondary" id="mr-tab-done">Completed</button>
+          <button class="btn secondary" id="mr-tab-shared">Shared with me</button>
         </div>
         <div class="panel"><div id="my-feed"><div class="loading">Loading…</div></div></div>
       </section>
@@ -573,27 +574,28 @@ async function loadDashboard() {
     }).join('');
   } catch (e) { feed.innerHTML = '<div class="empty">Could not load: '+esc(e.message)+'</div>'; }
 }
-// ---- My Requests (the signed-in user's own submissions, split Open / Completed) ----
+// ---- My Requests (Open / Completed = mine; Shared with me = I'm the Also Notify) ----
 let myReqTab = 'open';
-let myReqData = { open: [], done: [] };
+let myReqData = { open: [], done: [], shared: [] };
 function myReqRow(it) { const c = statusColor(it.status);
+  const meta = (it.shared && it.requestedBy) ? ('From ' + prettyName(it.requestedBy)) : fmtWhen(it.createdAt);
   return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
     <div class="s-name">${esc(it.name)}</div>
     <div class="s-tags"><span class="tag">${esc(it.category)}</span>
       ${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}
-      <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(fmtWhen(it.createdAt))}</span></div></a>`;
+      <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(meta)}</span></div></a>`;
 }
 function renderMyReq() {
   const feed = document.getElementById('my-feed');
-  const openBtn = document.getElementById('mr-tab-open'), doneBtn = document.getElementById('mr-tab-done');
-  openBtn.textContent = 'Open (' + myReqData.open.length + ')';
-  doneBtn.textContent = 'Completed (' + myReqData.done.length + ')';
-  [openBtn, doneBtn].forEach(b => { b.style.background = ''; b.style.color = ''; });
-  const active = myReqTab === 'done' ? doneBtn : openBtn;
-  active.style.background = 'var(--seaweed)'; active.style.color = 'var(--foam)';
-  const list = myReqTab === 'done' ? myReqData.done : myReqData.open;
-  if (!list.length) { feed.innerHTML = '<div class="empty">' + (myReqTab === 'done' ? 'No completed requests yet.' : 'No open requests right now.') + '</div>'; return; }
-  feed.innerHTML = list.map(myReqRow).join('');
+  const btns = { open: document.getElementById('mr-tab-open'), done: document.getElementById('mr-tab-done'), shared: document.getElementById('mr-tab-shared') };
+  btns.open.textContent = 'Open (' + myReqData.open.length + ')';
+  btns.done.textContent = 'Completed (' + myReqData.done.length + ')';
+  btns.shared.textContent = 'Shared with me (' + myReqData.shared.length + ')';
+  Object.values(btns).forEach(b => { b.style.background = ''; b.style.color = ''; });
+  btns[myReqTab].style.background = 'var(--seaweed)'; btns[myReqTab].style.color = 'var(--foam)';
+  const list = myReqData[myReqTab] || [];
+  const emptyMsg = myReqTab === 'shared' ? 'Nothing has been shared with you yet.' : (myReqTab === 'done' ? 'No completed requests yet.' : 'No open requests right now.');
+  feed.innerHTML = list.length ? list.map(myReqRow).join('') : '<div class="empty">' + emptyMsg + '</div>';
 }
 async function loadMyRequests() {
   const feed = document.getElementById('my-feed');
@@ -601,10 +603,16 @@ async function loadMyRequests() {
   try {
     const recent = await callApi({ action: 'recent-submissions', limit: 200, mine: true });
     const items = recent.items || [];
-    myReqData = { open: items.filter(it => !isDoneStatus(it.status)), done: items.filter(it => isDoneStatus(it.status)) };
+    const mineItems = items.filter(it => !it.shared);
+    myReqData = {
+      open: mineItems.filter(it => !isDoneStatus(it.status)),
+      done: mineItems.filter(it => isDoneStatus(it.status)),
+      shared: items.filter(it => it.shared),
+    };
     if (!items.length) {
       document.getElementById('mr-tab-open').textContent = 'Open (0)';
       document.getElementById('mr-tab-done').textContent = 'Completed (0)';
+      document.getElementById('mr-tab-shared').textContent = 'Shared with me (0)';
       feed.innerHTML = '<div class="empty">You haven\'t submitted any requests yet. Use “Submit a Request” to get started.</div>';
       return;
     }
@@ -613,6 +621,7 @@ async function loadMyRequests() {
 }
 document.getElementById('mr-tab-open').addEventListener('click', () => { myReqTab = 'open'; renderMyReq(); });
 document.getElementById('mr-tab-done').addEventListener('click', () => { myReqTab = 'done'; renderMyReq(); });
+document.getElementById('mr-tab-shared').addEventListener('click', () => { myReqTab = 'shared'; renderMyReq(); });
 
 function prettyName(email) {
   const local = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();

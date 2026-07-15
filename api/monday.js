@@ -843,7 +843,7 @@ async function fetchDashboardItems(cfg, emailFilter = null) {
       const query = `
         query ($boardId: ID!, $cols: [String!], $qp: ItemsQuery) {
           boards (ids: [$boardId]) {
-            items_page (limit: 500, query_params: $qp) { cursor items { updated_at column_values (ids: $cols) { id text } } }
+            items_page (limit: 500, query_params: $qp) { cursor items { id name updated_at column_values (ids: $cols) { id text } } }
           }
         }`;
       const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, qp });
@@ -851,7 +851,7 @@ async function fetchDashboardItems(cfg, emailFilter = null) {
     } else {
       const query = `
         query ($cursor: String!, $cols: [String!]) {
-          next_items_page (cursor: $cursor, limit: 500) { cursor items { updated_at column_values (ids: $cols) { id text } } }
+          next_items_page (cursor: $cursor, limit: 500) { cursor items { id name updated_at column_values (ids: $cols) { id text } } }
         }`;
       const data = await mondayQuery(query, { cursor, cols });
       page = data.next_items_page;
@@ -862,6 +862,8 @@ async function fetchDashboardItems(cfg, emailFilter = null) {
       for (const c of it.column_values) byId[c.id] = c.text || '';
       if (emailFilter && (byId[cfg.emailColumn] || '').trim().toLowerCase() !== emailFilter) continue;
       out.push({
+        id: it.id,
+        name: it.name,
         status: byId[cfg.statusColumn] || '',
         due: (byId[cfg.dateColumn] || '').trim(),
         team: (byId[cfg.teamColumn] || '').trim(),
@@ -884,31 +886,49 @@ async function dashboardCounts({ role, email } = {}) {
 
   const openByBoard = {};
   const openByTeam = {};
-  let openTotal = 0, overdue = 0, dueThisWeek = 0, completed30d = 0;
+  const openItems = [], overdueItems = [], dueThisWeekItems = [], completedItems = [];
 
   const results = await Promise.all(
     Object.entries(BOARDS).map(async ([key, cfg]) => {
       const items = await fetchDashboardItems(cfg, emailFilter);
       let open = 0;
       for (const it of items) {
+        const brief = { name: it.name, url: itemUrl(cfg.boardId, it.id), category: cfg.label, status: it.status, due: it.due };
         const bucket = bucketForStatus(it.status);
         const isOpen = bucket !== 'completed' && bucket !== null; // not done, not cancelled
         if (isOpen) {
           open += 1;
           const team = it.team || 'Unspecified';
           openByTeam[team] = (openByTeam[team] || 0) + 1;
-          if (it.due && it.due < todayStr) overdue += 1;
-          else if (it.due && it.due >= todayStr && it.due <= in7Str) dueThisWeek += 1;
+          openItems.push(brief);
+          if (it.due && it.due < todayStr) overdueItems.push(brief);
+          else if (it.due && it.due >= todayStr && it.due <= in7Str) dueThisWeekItems.push(brief);
         } else if (bucket === 'completed') {
           const t = it.updatedAt ? new Date(it.updatedAt).getTime() : 0;
-          if (t && t >= cutoff30) completed30d += 1; // approx: last edit ≈ completion
+          if (t && t >= cutoff30) { completedItems.push({ ...brief, completedAt: it.updatedAt }); } // approx: last edit ≈ completion
         }
       }
       return [key, open];
     })
   );
-  for (const [key, open] of results) { openByBoard[key] = open; openTotal += open; }
-  return { ok: true, openTotal, overdue, dueThisWeek, completed30d, openByBoard, openByTeam };
+  for (const [key, open] of results) { openByBoard[key] = open; }
+  const byDueAsc = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
+  openItems.sort(byDueAsc); overdueItems.sort(byDueAsc); dueThisWeekItems.sort(byDueAsc);
+  completedItems.sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0));
+  return {
+    ok: true,
+    openTotal: openItems.length,
+    overdue: overdueItems.length,
+    dueThisWeek: dueThisWeekItems.length,
+    completed30d: completedItems.length,
+    openByBoard, openByTeam,
+    items: {
+      open: openItems.slice(0, 200),
+      overdue: overdueItems.slice(0, 200),
+      dueThisWeek: dueThisWeekItems.slice(0, 200),
+      completed: completedItems.slice(0, 200),
+    },
+  };
 }
 
 async function recentSubmissions({ limit = 15, role, email, mine = false } = {}) {

@@ -508,12 +508,14 @@ function approvedEmails() {
 function authConfigured() { return Boolean(process.env.AUTH_SECRET); }
 
 // Resolve a sign-in email to a role: 'admin', 'requester', or null (blocked).
-// APPROVED_EMAILS acts as an emergency admin "break-glass" list so a Monday
-// outage can't lock everyone out; the Users board is the normal source of truth.
+// The Users board is the source of truth: if a person is listed there, their
+// board role wins — full stop. APPROVED_EMAILS is a true break-glass fallback,
+// used ONLY when the person isn't on the board, or when Monday can't be reached
+// (so an outage can't lock admins out). This ordering means you manage roles on
+// the board alone and never have to touch the env var to demote someone.
 async function getUserRole(email) {
   const clean = String(email || '').trim().toLowerCase();
   if (!clean) return null;
-  if (approvedEmails().includes(clean)) return 'admin';
   try {
     const query = `
       query ($b: ID!, $cols: [String!], $qp: ItemsQuery) {
@@ -529,11 +531,16 @@ async function getUserRole(email) {
       const byId = {};
       for (const c of it.column_values) byId[c.id] = (c.text || '').trim();
       if ((byId[USERS_EMAIL_COL] || '').toLowerCase() === clean) {
+        // On the board → board role is authoritative (overrides APPROVED_EMAILS).
         return (byId[USERS_ROLE_COL] || '').toLowerCase() === 'admin' ? 'admin' : 'requester';
       }
     }
-  } catch (e) { /* fall through → blocked */ }
-  return null;
+    // Not on the board → break-glass list may still grant admin, else blocked.
+    return approvedEmails().includes(clean) ? 'admin' : null;
+  } catch (e) {
+    // Monday unreachable → fall back to the break-glass list so admins aren't locked out.
+    return approvedEmails().includes(clean) ? 'admin' : null;
+  }
 }
 
 function issueToken(email, role) {

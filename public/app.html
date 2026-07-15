@@ -65,7 +65,8 @@
   .welcome-sub { color: var(--muted); font-size: 15px; margin: 8px 0 26px; }
 
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-  .kpi { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .kpi { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease; }
+  .kpi:hover { border-color: var(--yellow); box-shadow: 0 2px 12px rgba(9,46,54,0.06); }
   .kpi .k-label { font-size: 14px; font-weight: 600; color: var(--seaweed-70); }
   .kpi .k-num { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; margin: 12px 0 6px; line-height: 1; color: var(--seaweed); }
   .kpi .k-foot { font-size: 12.5px; color: var(--muted); }
@@ -189,10 +190,17 @@
         <h1 class="welcome serif">Welcome back.</h1>
         <p class="welcome-sub">Centralized Marketing Request System</p>
         <div class="kpis">
-          <div class="kpi open"><div class="k-label">Open Requests</div><div class="k-num" id="kpi-open">—</div><div class="k-foot">Across all request types</div></div>
-          <div class="kpi overdue"><div class="k-label">Overdue</div><div class="k-num" id="kpi-overdue">—</div><div class="k-foot">Past their due date</div></div>
-          <div class="kpi dueweek"><div class="k-label">Due This Week</div><div class="k-num" id="kpi-dueweek">—</div><div class="k-foot">Next 7 days</div></div>
-          <div class="kpi completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-done30">—</div><div class="k-foot">Last 30 days</div></div>
+          <div class="kpi open" data-bucket="open"><div class="k-label">Open Requests</div><div class="k-num" id="kpi-open">—</div><div class="k-foot">Across all request types</div></div>
+          <div class="kpi overdue" data-bucket="overdue"><div class="k-label">Overdue</div><div class="k-num" id="kpi-overdue">—</div><div class="k-foot">Past their due date</div></div>
+          <div class="kpi dueweek" data-bucket="dueThisWeek"><div class="k-label">Due This Week</div><div class="k-num" id="kpi-dueweek">—</div><div class="k-foot">Next 7 days</div></div>
+          <div class="kpi completed" data-bucket="completed"><div class="k-label">Completed</div><div class="k-num" id="kpi-done30">—</div><div class="k-foot">Last 30 days</div></div>
+        </div>
+        <div class="panel" id="drill-panel" style="display:none; margin-top:18px;">
+          <div class="panel-head" style="justify-content:space-between; align-items:center">
+            <h3 id="drill-title"></h3>
+            <button id="drill-close" class="btn secondary" style="padding:6px 12px">Close</button>
+          </div>
+          <div id="drill-list"></div>
         </div>
         <div class="two-col">
           <div class="panel">
@@ -509,8 +517,36 @@ function renderBars(id, rows) {
       + '<div class="b-val">'+val+'</div></div>';
   }).join('');
 }
+// ---- KPI drill-down (click a dashboard card to see the items behind it) ----
+let dashDrill = {};
+let drillBucket = null;
+function fmtDate(ymd) { if (!ymd) return ''; const d = new Date(ymd + 'T00:00:00'); return isNaN(d) ? ymd : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function drillRow(it) { const c = statusColor(it.status);
+  const meta = it.due ? ('Due ' + fmtDate(it.due)) : '';
+  return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
+    <div class="s-name">${esc(it.name)}</div>
+    <div class="s-tags"><span class="tag">${esc(it.category)}</span>
+      ${it.status ? '<span class="status-pill" style="background:'+c.bg+';color:'+c.fg+'">'+esc(it.status)+'</span>' : ''}
+      <span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(meta)}</span></div></a>`;
+}
+const DRILL_TITLES = { open: 'Open requests', overdue: 'Overdue requests', dueThisWeek: 'Due this week', completed: 'Completed (last 30 days)' };
+function closeDrill() { const p = document.getElementById('drill-panel'); if (p) p.style.display = 'none'; drillBucket = null; }
+function showDrill(bucket) {
+  const panel = document.getElementById('drill-panel');
+  if (drillBucket === bucket) { closeDrill(); return; }   // click same card again = close
+  drillBucket = bucket;
+  document.getElementById('drill-title').textContent = DRILL_TITLES[bucket] || 'Requests';
+  const list = dashDrill[bucket] || [];
+  document.getElementById('drill-list').innerHTML = list.length ? list.map(drillRow).join('') : '<div class="empty">Nothing here right now.</div>';
+  panel.style.display = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+document.querySelectorAll('.kpi[data-bucket]').forEach(card => card.addEventListener('click', () => showDrill(card.getAttribute('data-bucket'))));
+document.getElementById('drill-close').addEventListener('click', closeDrill);
+
 async function loadDashboard() {
   const feed = document.getElementById('feed');
+  closeDrill();
   ['open','overdue','dueweek','done30'].forEach(k => document.getElementById('kpi-'+k).textContent = '—');
   document.getElementById('chart-board').innerHTML = '<div class="loading">Loading…</div>';
   document.getElementById('chart-team').innerHTML = '<div class="loading">Loading…</div>';
@@ -518,6 +554,7 @@ async function loadDashboard() {
   if (ROLE === 'admin') loadTopRequesters();
   try {
     const [counts, recent] = await Promise.all([ callApi({ action: 'dashboard-counts' }), callApi({ action: 'recent-submissions', limit: 30 }) ]);
+    dashDrill = counts.items || {};
     document.getElementById('kpi-open').textContent = counts.openTotal;
     document.getElementById('kpi-overdue').textContent = counts.overdue;
     document.getElementById('kpi-dueweek').textContent = counts.dueThisWeek;

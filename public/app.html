@@ -366,6 +366,9 @@ const CATEGORIES = {
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'requiresProcurement', label: 'Requires procurement?', type: 'select', options: ['No','Yes'], required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'procurementNotes', label: 'What needs to be procured?', type: 'textarea', full: true, showIf: { field: 'requiresProcurement', equals: 'Yes' } },
+    { key: 'procurementQuantity', label: 'Quantity', type: 'number', showIf: { field: 'requiresProcurement', equals: 'Yes' } },
+    { key: 'procurementVendor', label: 'Vendor', type: 'text', showIf: { field: 'requiresProcurement', equals: 'Yes' } },
+    { key: 'procurementBudget', label: 'Budget', type: 'text', showIf: { field: 'requiresProcurement', equals: 'Yes' } },
     { key: 'referenceLinks', label: 'Reference Links (paste URLs, one per line — best for large files)', type: 'textarea', full: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'files', label: 'Reference Files (images or PDFs, ~3 MB total)', type: 'file', full: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
   ] },
@@ -705,14 +708,18 @@ function renderForm() {
   });
   html += '</div><div style="margin-top:6px"><button type="submit" class="btn" id="submit-btn">Submit '+esc(cfg.label)+' Request</button></div>';
   form.innerHTML = html;
-  // Requesters file as themselves: lock the email field to their sign-in email.
-  if (ROLE === 'requester') {
-    // Lock only the requester's OWN email to their sign-in; leave "Also Notify" editable.
-    form.querySelectorAll('input[type=email]:not([name="ccEmail"]):not([name="cardEmail"])').forEach((inp) => {
-      inp.value = getEmail(); inp.readOnly = true; inp.style.background = 'var(--foam-2)';
+  // Default every requester-owned email field to the signed-in email, so no
+  // one has to retype it — never "Also Notify" or the business-card printed
+  // email, both of which belong to someone else. Requesters get it locked
+  // (they can only file as themselves); admins get it as an editable default
+  // so they can still submit on someone else's behalf when needed.
+  form.querySelectorAll('input[type=email]:not([name="ccEmail"]):not([name="cardEmail"])').forEach((inp) => {
+    inp.value = getEmail();
+    if (ROLE === 'requester') {
+      inp.readOnly = true; inp.style.background = 'var(--foam-2)';
       inp.title = 'Signed in as ' + getEmail();
-    });
-  }
+    }
+  });
   form.querySelectorAll('select[name]').forEach(sel => sel.addEventListener('change', applyConditions));
   applyConditions();
 }

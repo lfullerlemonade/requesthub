@@ -32,7 +32,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
-    tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
+    tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
@@ -44,6 +44,7 @@ const BOARDS = {
       { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57gkn3', kind: 'dropdown' },
+      { key: 'outlet', column: 'dropdown_mm5rm01q', kind: 'dropdown' },   // Only surfaced on the form when Team = F&B
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },

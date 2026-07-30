@@ -714,6 +714,9 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         ccEmail: f.ccEmail,
         dueDate: f.idealDueDate,
         itemDescription: f.procurementNotes || f.projectDescription || '',
+        quantity: f.procurementQuantity,
+        vendor: f.procurementVendor,
+        budget: f.procurementBudget,
         notes: descParts.join('\n\n'),
       };
       const pcv = buildColumnValues(pcfg, pf);

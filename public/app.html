@@ -327,6 +327,7 @@ const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
+    { key: 'outlet', label: 'Outlet', type: 'select', options: ['Lovebirds','Julene','Citrus Shack','Sandbar','Misc.'], showIf: { field: 'team', equals: 'F&B' }, required: true },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
@@ -416,7 +417,7 @@ const CATEGORIES = {
 };
 
 const COLUMN_LABELS = {
-  color_mm3ym1pj: 'Status', text_mm3ytbvq: 'Department', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
+  color_mm3ym1pj: 'Status', text_mm3ytbvq: 'Department', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', text_mm3yghj8: 'Department/Role', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
   color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', text_mm57mzz2: 'Department/Outlet', date_mm57j8b: 'Ideal Due Date',
   color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',

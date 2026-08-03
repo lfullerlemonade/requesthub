@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 await fs.access(new URL('./api/monday.js', import.meta.url));
+await fs.access(new URL('./api/signout.js', import.meta.url));
 const moduleUrl = new URL('./api/monday.js?creative-production-verify', import.meta.url);
 
 process.env.MONDAY_API_TOKEN = 'test-token';

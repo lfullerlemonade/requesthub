@@ -15,6 +15,7 @@
     --green: #1f8a5b; --green-bg: #e4f1e9; --red: #b23a2e;
     --line: rgba(9,46,54,0.12); --line-2: rgba(9,46,54,0.07);
     --sidebar-w: 244px; --radius: 14px;
+    --lift: 0 18px 44px rgba(9,46,54,0.08);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -123,10 +124,17 @@
     font-size: 14px; background: #fff; color: var(--seaweed); font-family: inherit; }
   .field textarea { min-height: 92px; resize: vertical; }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(255,192,63,0.26); }
+  .field-hint { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.5; margin: -2px 0 8px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
   .check { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; user-select: none; background: #fff; }
   .check input { width: auto; margin: 0; accent-color: var(--seaweed); }
   .check:has(input:checked) { border-color: var(--yellow); background: #fffdf6; }
+  .choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+  .choice-grid .check { border-radius: 10px; min-height: 44px; padding: 9px 12px; transition: background .14s ease, border-color .14s ease, transform .14s ease; }
+  .choice-grid .check:hover { border-color: rgba(9,46,54,.28); transform: translateY(-1px); }
+  .money-input { position: relative; }
+  .money-input::before { content: '$'; position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--seaweed-70); font-weight: 600; z-index: 1; }
+  .money-input input { padding-left: 29px; }
   .outletqty { display: flex; flex-direction: column; gap: 8px; }
   .oq-row { display: flex; align-items: center; gap: 10px; }
   .oq-row .oq-name { flex: 1; justify-content: flex-start; }
@@ -137,14 +145,27 @@
   .btn.secondary:hover { background: var(--foam-2); opacity: 1; }
 
   .table-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .table-toolbar { background: rgba(255,255,255,.82); border: 1px solid var(--line); border-radius: 13px; padding: 10px;
+    box-shadow: 0 8px 24px rgba(9,46,54,.05); backdrop-filter: blur(8px); }
   .table-controls input[type=search], .table-controls select { padding: 10px 13px; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; background: #fff; font-family: inherit; color: var(--seaweed); }
   .table-controls input[type=search] { flex: 1; min-width: 220px; }
+  .table-context { display: flex; align-items: center; gap: 8px; margin: 3px 2px 12px; color: var(--muted); font-size: 11.5px; }
+  .table-context::before { content: ''; width: 22px; height: 3px; border-radius: 99px; background: var(--yellow); }
+  .request-table-shell { position: relative; background: var(--white); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--lift); }
+  .request-table-shell::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, var(--yellow) 0 22%, var(--seaweed) 22% 100%); }
+  .request-table-scroll { overflow-x: auto; }
+  .request-table-shell table { min-width: 860px; }
   table { width: 100%; border-collapse: collapse; }
-  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 13px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: var(--foam); }
-  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--line-2); font-size: 14px; vertical-align: top; }
-  tbody tr:hover { background: var(--foam); }
+  thead th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--seaweed-70); padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: #eef2ef; white-space: nowrap; }
+  tbody tr { background: var(--white); transition: background .14s ease, box-shadow .14s ease; }
+  tbody td { padding: 15px 16px; border-bottom: 1px solid var(--line-2); font-size: 13.5px; vertical-align: middle; }
+  .request-table-shell tbody td:last-child { white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #fffaf0; box-shadow: inset 4px 0 0 var(--yellow); }
   tbody td a { color: var(--seaweed); text-decoration: none; font-weight: 600; }
-  tbody td a:hover { color: var(--ocean); text-decoration: underline; }
+  tbody td a:hover { color: var(--ocean); text-decoration: none; }
+  .request-table-shell tbody td:first-child a::after { content: '↗'; display: inline-block; margin-left: 7px; color: var(--muted); opacity: 0; transform: translate(-3px, 2px); transition: opacity .14s ease, transform .14s ease; }
+  .request-table-shell tbody tr:hover td:first-child a::after { opacity: 1; transform: translate(0, 0); }
   .load-more-wrap { padding: 16px; text-align: center; }
 
   .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: var(--seaweed); color: var(--foam); padding: 13px 22px; border-radius: 11px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; max-width: 90vw; }
@@ -156,6 +177,7 @@
     .kpis { grid-template-columns: repeat(2, 1fr); }
     .two-col { grid-template-columns: 1fr; }
     .cat-picker { grid-template-columns: repeat(2, 1fr); }
+    .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .grid2 { grid-template-columns: 1fr; }
     .sidebar { position: fixed; z-index: 20; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
     .app-shell:not(.nav-open) .sidebar { display: none; }
@@ -255,13 +277,14 @@
       <section class="view" id="view-track">
         <h1 class="welcome serif" id="track-title" style="font-size:28px">Requests</h1>
         <p class="welcome-sub">Search, filter, and review submitted requests</p>
-        <div class="table-controls">
+        <div class="table-controls table-toolbar">
           <input type="search" id="track-search" placeholder="Search by name…" />
           <select id="track-status"><option value="">All statuses</option></select>
           <button class="btn secondary" id="track-refresh">Refresh</button>
         </div>
-        <div class="card-block" style="padding:0">
-          <table><thead id="track-thead"></thead><tbody id="track-tbody"></tbody></table>
+        <div class="table-context"><span id="track-result-count">Loading request queue…</span></div>
+        <div class="request-table-shell">
+          <div class="request-table-scroll"><table><thead id="track-thead"></thead><tbody id="track-tbody"></tbody></table></div>
           <div class="load-more-wrap" id="track-loadmore-wrap" style="display:none"><button class="btn secondary" id="track-loadmore">Load more</button></div>
         </div>
       </section>
@@ -365,6 +388,16 @@ const CATEGORIES = {
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'intendedUsage', label: 'Where will the photos or video be used?', type: 'multiselect',
+      options: ['Website','Organic Social','Paid Social / Advertising','Email','Print','PR / Press','On Property','Other'],
+      showIf: { field: 'contentType', oneOf: ['Photography','Videography'] }, required: true, full: true,
+      hint: 'Select every channel this shoot needs to support.' },
+    { key: 'photographerVideographer', label: 'Photographer / Videographer (optional)', type: 'text',
+      showIf: { field: 'contentType', oneOf: ['Photography','Videography'] },
+      hint: 'Leave blank if the creative team should recommend someone.' },
+    { key: 'estimatedBudget', label: 'Estimated Budget', type: 'currency',
+      showIf: { field: 'contentType', oneOf: ['Photography','Videography'] }, required: true,
+      hint: 'Enter the available production budget in USD.' },
     { key: 'socialPostDate', label: 'Date to Post', type: 'date', showIf: { field: 'contentType', equals: 'Social Media' }, required: true },
     { key: 'cardholderName', label: 'Full Name (as printed on the card)', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
     { key: 'personRequesting', label: 'Person Requesting', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
@@ -790,6 +823,9 @@ function fieldControl(f) {
       + PROGRAMS.map(p => '<option value="'+esc(p.id)+'">'+esc(programOptionLabel(p))+'</option>').join('') + '</select>';
   }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
+  if (f.type === 'multiselect') return '<div class="choice-grid">' + f.options.map(o =>
+    '<label class="check"><input type="checkbox" name="'+f.key+'" value="'+esc(o)+'" /> <span>'+esc(o)+'</span></label>').join('') + '</div>';
+  if (f.type === 'currency') return '<div class="money-input"><input type="number" name="'+f.key+'" min="0" step="0.01" inputmode="decimal"'+req+' /></div>';
   if (f.type === 'outletqty') return '<div class="outletqty">' + f.options.map(o =>
     '<div class="oq-row"><label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
     + '<input type="number" min="1" step="1" inputmode="numeric" data-oq-qty="'+esc(o)+'" placeholder="Qty" class="oq-qty" /></div>').join('') + '</div>';
@@ -818,9 +854,9 @@ function renderForm() {
   cfg.fields.forEach(f => {
     const full = f.full || f.type === 'textarea' || f.type === 'outletqty';
     const wrapStyle = (full ? 'grid-column:1 / -1;' : '') + (f.showIf ? 'display:none;' : '');
-    let cond = f.showIf ? ' data-showif-field="'+f.showIf.field+'" data-showif-eq="'+esc(f.showIf.equals)+'"' : '';
+    let cond = f.showIf ? ' data-showif-field="'+f.showIf.field+'"' + (f.showIf.oneOf ? ' data-showif-values="'+esc(f.showIf.oneOf.join('|'))+'"' : ' data-showif-eq="'+esc(f.showIf.equals)+'"') : '';
     if (f.hideIf) cond += ' data-hideif-field="'+f.hideIf.field+'" data-hideif-eq="'+esc(f.hideIf.equals)+'"';
-    html += '<div class="field" data-key="'+f.key+'"'+cond+' style="'+wrapStyle+'"><label>'+esc(f.label)+(f.required?' <span class="req">*</span>':'')+'</label>'+fieldControl(f)+'</div>';
+    html += '<div class="field" data-key="'+f.key+'"'+cond+' style="'+wrapStyle+'"><label>'+esc(f.label)+(f.required?' <span class="req">*</span>':'')+'</label>'+(f.hint?'<span class="field-hint">'+esc(f.hint)+'</span>':'')+fieldControl(f)+'</div>';
   });
   html += '</div><div style="margin-top:6px"><button type="submit" class="btn" id="submit-btn">Submit '+esc(cfg.label)+' Request</button></div>';
   form.innerHTML = html;
@@ -844,7 +880,11 @@ function applyConditions() {
   form.querySelectorAll('.field[data-showif-field], .field[data-hideif-field]').forEach(el => {
     let show = true;
     const sf = el.getAttribute('data-showif-field');
-    if (sf) { const c = form.querySelector('[name="'+sf+'"]'); show = show && !!(c && c.value === el.getAttribute('data-showif-eq')); }
+    if (sf) {
+      const c = form.querySelector('[name="'+sf+'"]');
+      const values = (el.getAttribute('data-showif-values') || '').split('|').filter(Boolean);
+      show = show && !!(c && (values.length ? values.includes(c.value) : c.value === el.getAttribute('data-showif-eq')));
+    }
     const hf = el.getAttribute('data-hideif-field');
     if (hf) { const c = form.querySelector('[name="'+hf+'"]'); show = show && !(c && c.value === el.getAttribute('data-hideif-eq')); }
     el.style.display = show ? '' : 'none';
@@ -890,6 +930,9 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
         else if (qty !== '' && Number(qty) > 0) oq[outlet] = qty;
       });
       if (Object.keys(oq).length) fields[f.key] = oq;
+    } else if (f.type === 'multiselect') {
+      const selected = Array.from(wrap.querySelectorAll('input[name="'+f.key+'"]:checked')).map(el => el.value);
+      if (selected.length) fields[f.key] = selected;
     } else if (f.type === 'file') { /* handled after validation (async read) */
     } else { const el = wrap.querySelector('[name="'+f.key+'"]'); if (el && String(el.value).trim() !== '') fields[f.key] = el.value; }
   });
@@ -954,19 +997,20 @@ document.getElementById('track-status').addEventListener('change', () => loadTra
 document.getElementById('track-loadmore').addEventListener('click', () => loadTrack(currentTrackCat, false));
 function buildStatusFilter(cat) { const sel = document.getElementById('track-status'); sel.innerHTML = '<option value="">Active only</option><option value="__all">All statuses</option>' + (STATUS_OPTIONS[cat]||[]).map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join(''); }
 async function loadTrack(cat, reset) {
-  const thead = document.getElementById('track-thead'); const tbody = document.getElementById('track-tbody'); const lmWrap = document.getElementById('track-loadmore-wrap');
+  const thead = document.getElementById('track-thead'); const tbody = document.getElementById('track-tbody'); const lmWrap = document.getElementById('track-loadmore-wrap'); const resultCount = document.getElementById('track-result-count');
   if (reset && trackStatusBuiltFor !== cat) { buildStatusFilter(cat); trackStatusBuiltFor = cat; }
   const search = document.getElementById('track-search').value.trim();
   const statusSel = document.getElementById('track-status').value;
   const activeOnly = statusSel === '';                                    // default view hides done
   const apiStatus = (statusSel && statusSel !== '__all') ? statusSel : ''; // '' or '__all' → no status query
-  if (reset) { trackCursor = null; trackLoadedFilter = { search, apiStatus, activeOnly }; tbody.innerHTML = '<tr><td colspan="6"><div class="loading">Loading…</div></td></tr>'; lmWrap.style.display = 'none'; }
+  if (reset) { trackCursor = null; trackLoadedFilter = { search, apiStatus, activeOnly }; tbody.innerHTML = '<tr><td colspan="6"><div class="loading">Loading…</div></td></tr>'; lmWrap.style.display = 'none'; resultCount.textContent = 'Loading request queue…'; }
   try {
     const res = await callApi({ action: 'list-board-items', category: cat, search: trackLoadedFilter.search || undefined, status: trackLoadedFilter.apiStatus || undefined, cursor: reset ? undefined : trackCursor, limit: trackLoadedFilter.activeOnly ? 100 : 25 });
     const cols = res.columns;
     thead.innerHTML = '<tr><th>Name</th>' + cols.map(c => '<th>'+esc(COLUMN_LABELS[c] || c)+'</th>').join('') + '</tr>';
     let items = res.items;
     if (trackLoadedFilter.activeOnly) items = items.filter(it => !isDoneStatus(it.status));
+    resultCount.textContent = items.length + (items.length === 1 ? ' request shown' : ' requests shown') + (res.hasMore ? ' · more available' : '');
     const rowsHtml = items.map(it => {
       const tds = cols.map(c => { const val = it.columns[c] || '';
         if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') { if (!val) return '<td></td>'; const col = statusColor(val, cat); return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>'; }
@@ -977,7 +1021,7 @@ async function loadTrack(cat, reset) {
     if (reset) tbody.innerHTML = rowsHtml || '<tr><td colspan="'+(cols.length+1)+'"><div class="empty">'+(trackLoadedFilter.activeOnly ? 'No active requests.' : 'No matching requests.')+'</div></td></tr>';
     else tbody.insertAdjacentHTML('beforeend', rowsHtml);
     trackCursor = res.nextCursor; lmWrap.style.display = res.hasMore ? 'block' : 'none';
-  } catch (e) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Could not load: '+esc(e.message)+'</div></td></tr>'; lmWrap.style.display = 'none'; }
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Could not load: '+esc(e.message)+'</div></td></tr>'; lmWrap.style.display = 'none'; resultCount.textContent = 'Request queue needs attention'; }
 }
 
 // ---- Init ----

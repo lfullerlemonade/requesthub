@@ -32,7 +32,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
-    tableColumns: ['color_mm3ym1pj', 'text_mm3ytbvq', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
+    tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
@@ -58,7 +58,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3y77nq',
     teamColumn: 'dropdown_mm57xa91',
-    tableColumns: ['color_mm3yma9j', 'dropdown_mm3y16t7', 'text_mm3yghj8', 'numeric_mm3ygc6y', 'date_mm3y77nq'],
+    tableColumns: ['color_mm3yma9j', 'dropdown_mm3y16t7', 'dropdown_mm57xa91', 'email_mm57fky2', 'numeric_mm3ygc6y', 'date_mm3y77nq'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'uniformType', column: 'dropdown_mm3y16t7', kind: 'dropdown' },
@@ -84,7 +84,7 @@ const BOARDS = {
     dateColumn: 'date_mm57j8b',
     teamColumn: 'dropdown_mm575bmp',
     fileColumn: 'file_mm57s5z7', // uploaded reference files land here
-    tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'text_mm57mzz2', 'date_mm57j8b'],
+    tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'dropdown_mm575bmp', 'email_mm57jmf2', 'date_mm57j8b'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'contentType', column: 'dropdown_mm57r0h9', kind: 'dropdown' },
@@ -107,7 +107,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm57f4h4',
     teamColumn: 'dropdown_mm57k4ha',
-    tableColumns: ['color_mm57d28j', 'color_mm57egma', 'dropdown_mm57yjtk', 'numeric_mm57rqaq', 'date_mm57f4h4'],
+    tableColumns: ['color_mm57d28j', 'color_mm57egma', 'dropdown_mm57k4ha', 'email_mm57r2z6', 'dropdown_mm57yjtk', 'numeric_mm57rqaq', 'date_mm57f4h4'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'printType', column: 'color_mm57egma', kind: 'status' },         // Menus / Other
@@ -131,7 +131,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm58gm0p',      // Event Date (added for the Hub) — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm58q4be',  // Team (added for the Hub)
-    tableColumns: ['color_mm09fjad', 'date_mm58gm0p', 'multi_selectoxjp1hu4', 'short_textimp5o09l', 'short_textgjvu15x0'],
+    tableColumns: ['color_mm09fjad', 'dropdown_mm58q4be', 'email_mm58rj16', 'date_mm58gm0p', 'multi_selectoxjp1hu4', 'short_textimp5o09l', 'short_textgjvu15x0'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'team', column: 'dropdown_mm58q4be', kind: 'dropdown' },
@@ -163,7 +163,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3z4zk3',       // existing Due Date
     teamColumn: 'dropdown_mm58xgxs',  // Team (added for the Hub)
-    tableColumns: ['color_mm3ztet1', 'dropdown_mm58xgxs', 'date_mm3z4zk3'],
+    tableColumns: ['color_mm3ztet1', 'dropdown_mm58xgxs', 'email_mm58xcf0', 'date_mm3z4zk3'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'team', column: 'dropdown_mm58xgxs', kind: 'dropdown' },
@@ -904,7 +904,7 @@ async function dashboardCounts({ role, email } = {}) {
       const items = await fetchDashboardItems(cfg, emailFilter);
       let open = 0;
       for (const it of items) {
-        const brief = { name: it.name, url: itemUrl(cfg.boardId, it.id), category: cfg.label, status: it.status, due: it.due };
+        const brief = { name: it.name, url: itemUrl(cfg.boardId, it.id), category: cfg.label, categoryKey: key, status: it.status, due: it.due };
         const bucket = bucketForStatus(it.status);
         const isOpen = bucket !== 'completed' && bucket !== null; // not done, not cancelled
         if (isOpen) {

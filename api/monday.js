@@ -15,6 +15,29 @@ import crypto from 'node:crypto';
 const MONDAY_API_URL = 'https://api.monday.com/v2';
 const MONDAY_API_VERSION = '2024-10';
 const ACCOUNT_SLUG = 'hbcapital'; // used to build item deep-links
+const SCHEMA_VERSION = '1.0.0';
+
+const CANONICAL = {
+  teams: ['Sales', 'Front Office', 'Rooms', 'F&B', 'Pool & Beach', 'Engineering', 'Housekeeping', 'Marketing', 'Ownership', 'Brand'],
+  outlets: ['Campaigns', 'The Sunny', 'Julene', 'Citrus Shack', 'Lovebirds', 'Sandbar', 'Newport Room', 'Pool / Beach', 'Rooms / E-commerce'],
+  workstreams: ['Partnerships', 'Programming & Activations', 'Content Creation / Organic Social', 'PR', 'Paid Social / Media', 'Digital', 'Influencers', 'Campaign', 'Brand', 'Misc Procurement'],
+  priorities: ['P0 - Blocker', 'P0 - Deadline', 'P0 - Launch', 'P1 - This Week', 'P1 - August', 'P1 - September', 'P2 - July', 'P3 - Post Launch'],
+  launchImpacts: ['unreviewed', 'operational_only', 'launch_related'],
+};
+
+// Shared Phase 2 integration columns. Operational fields stay on their native
+// board; these columns give Request Hub and Launch Hub a stable cross-board
+// identity and one place to read launch-triage and sync state.
+const INTEGRATION_COLUMNS = {
+  procurement: { requestId: 'text_mm5wntm5', familyId: 'text_mm5w38ba', parentId: 'text_mm5wtk63', metadata: 'long_text_mm5wq9ad', sync: 'color_mm5w7jyt', impact: 'color_mm5w26kz', workstream: 'dropdown_mm5w387t', priority: 'dropdown_mm5wy493', outlet: 'dropdown_mm5rm01q', liveDate: 'date_mm5rp6zz' },
+  uniform: { requestId: 'text_mm5wbqvp', familyId: 'text_mm5wx47v', parentId: 'text_mm5wc30d', metadata: 'long_text_mm5wc32c', sync: 'color_mm5wpba9', impact: 'color_mm5wc10g', workstream: 'dropdown_mm5w73fh', priority: 'dropdown_mm5warg5', outlet: 'dropdown_mm5w45ch', liveDate: 'date_mm5wbgg7' },
+  creative: { requestId: 'text_mm5wqsp4', familyId: 'text_mm5wfmqh', parentId: 'text_mm5wmdz5', metadata: 'long_text_mm5wp47w', sync: 'color_mm5w49ps', impact: 'color_mm5wbn6p', workstream: 'dropdown_mm5w7tfp', priority: 'dropdown_mm5wepat', outlet: 'dropdown_mm5ww1g9', liveDate: 'date_mm5w7dnp' },
+  print: { requestId: 'text_mm5wt9p', familyId: 'text_mm5w7tar', parentId: 'text_mm5wx3fr', metadata: 'long_text_mm5w4dp2', sync: 'color_mm5w8yyk', impact: 'color_mm5whzzn', workstream: 'dropdown_mm5wj7fx', priority: 'dropdown_mm5wa0zf', outlet: 'dropdown_mm5w922e', liveDate: 'date_mm5w30md' },
+  beo: { requestId: 'text_mm5wfkf9', familyId: 'text_mm5wdmv3', parentId: 'text_mm5w9y9t', metadata: 'long_text_mm5wzmnn', sync: 'color_mm5wpwz8', impact: 'color_mm5wsh2r', workstream: 'dropdown_mm5wrh1k', priority: 'dropdown_mm5wdebr', outlet: 'dropdown_mm5wky56', requestedDate: 'date_mm5w4zkh', liveDate: 'date_mm58gm0p' },
+  general: { requestId: 'text_mm5wn6sp', familyId: 'text_mm5wsfss', parentId: 'text_mm5wb7q0', metadata: 'long_text_mm5we3k5', sync: 'color_mm5wdpyy', impact: 'color_mm5wyv4t', workstream: 'dropdown_mm5wp336', priority: 'dropdown_mm5w4h88', outlet: 'dropdown_mm5wghtf', liveDate: 'date_mm5w8rdq' },
+  business_card: { requestId: 'text_mm5w38ws', familyId: 'text_mm5wm72t', parentId: 'text_mm5w2797', metadata: 'long_text_mm5wtpet', sync: 'color_mm5wwpwt', impact: 'color_mm5wdwwa', workstream: 'dropdown_mm5wbd8f', priority: 'dropdown_mm5wspg8', outlet: 'dropdown_mm5wktj5', liveDate: 'date_mm5wghs9', team: 'dropdown_mm5wjexh', requestedDate: 'date_mm5wv528' },
+  social: { requestId: 'text_mm5w82sv', familyId: 'text_mm5wqjed', parentId: 'text_mm5wza5g', metadata: 'long_text_mm5w1sxt', sync: 'color_mm5wryye' },
+};
 
 // ---------------------------------------------------------------------------
 // Board routing + column map. This is the authoritative config for writes.
@@ -44,7 +67,8 @@ const BOARDS = {
       { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57gkn3', kind: 'dropdown' },
-      { key: 'outlet', column: 'dropdown_mm5rm01q', kind: 'dropdown' },   // Only surfaced on the form when Team = F&B
+      { key: 'outlet', column: 'dropdown_mm5rm01q', kind: 'dropdown' },
+      { key: 'liveOrOnPropertyDate', column: 'date_mm5rp6zz', kind: 'date' },
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
   },
@@ -71,6 +95,8 @@ const BOARDS = {
       { key: 'requesterEmail', column: 'email_mm57fky2', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm572kjx', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57xa91', kind: 'dropdown' },
+      { key: 'outlet', column: 'dropdown_mm5w45ch', kind: 'dropdown' },
+      { key: 'liveOrOnPropertyDate', column: 'date_mm5wbgg7', kind: 'date' },
     ],
   },
   creative: {
@@ -92,6 +118,8 @@ const BOARDS = {
       { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm57x2pd', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm575bmp', kind: 'dropdown' },
+      { key: 'outlet', column: 'dropdown_mm5ww1g9', kind: 'dropdown' },
+      { key: 'liveOrOnPropertyDate', column: 'date_mm5w7dnp', kind: 'date' },
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
       { key: 'referenceLinks', column: 'long_text_mm57mky2', kind: 'long_text' },
@@ -118,6 +146,8 @@ const BOARDS = {
       { key: 'requesterEmail', column: 'email_mm57r2z6', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm579cnx', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57k4ha', kind: 'dropdown' },
+      { key: 'outlet', column: 'dropdown_mm5w922e', kind: 'dropdown' },
+      { key: 'liveOrOnPropertyDate', column: 'date_mm5w30md', kind: 'date' },
       { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
   },
@@ -140,6 +170,8 @@ const BOARDS = {
       { key: 'contact', column: 'short_textldvm5txi', kind: 'text' },
       { key: 'eventName', column: 'short_textaromenrh', kind: 'text' },
       { key: 'eventDate', column: 'date_mm58gm0p', kind: 'date' },
+      { key: 'requestedCompletionDate', column: 'date_mm5w4zkh', kind: 'date' },
+      { key: 'outlet', column: 'dropdown_mm5wky56', kind: 'dropdown' },
       { key: 'location', column: 'short_textgjvu15x0', kind: 'text' },
       { key: 'guestCount', column: 'short_textimp5o09l', kind: 'text' },      // Guest Count is a TEXT column on this board
       { key: 'startTime', column: 'short_textz4mudep1', kind: 'text' },
@@ -171,6 +203,8 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm58f1rj', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'details', column: 'long_text_mm3z4q79', kind: 'long_text' },  // existing Description
       { key: 'dueDate', column: 'date_mm3z4zk3', kind: 'date' },
+      { key: 'outlet', column: 'dropdown_mm5wghtf', kind: 'dropdown' },
+      { key: 'liveOrOnPropertyDate', column: 'date_mm5w8rdq', kind: 'date' },
     ],
   },
 };
@@ -193,11 +227,13 @@ const PRINT_TOTAL_QTY = 'numeric_mm57rqaq';
 // target post date, so scheduling sees it on the calendar right away. The two
 // items are cross-linked so you can jump from the post to the finished asset.
 const SOCIAL_BOARD = {
+  label: 'Social & Content',
   boardId: 18409075892,
   group: 'group_mm2fkwqn',            // "Upcoming Posts"
   statusColumn: 'color_mm2f40w0',
   defaultStatus: 'Draft',             // asset not produced yet
   postDateColumn: 'date_mm2fwsds',    // "Post Date"
+  brandColumn: 'dropdown_mm2f9ncb',   // canonical outlet/brand
   linkToCreativeCol: 'link_mm58rtg',  // "Linked Creative Request" on the Social board
 };
 const CREATIVE_SOCIAL_LINK_COL = 'link_mm58hayh'; // "Linked Social Post" on the Creative board
@@ -218,6 +254,10 @@ const BUSINESS_CARD = {
     { key: 'directPhone', column: 'phones5y6s7um', kind: 'phone' },
     { key: 'mobilePhone', column: 'phonecb45nl4h', kind: 'phone' },
     { key: 'email', column: 'email_mm58k036', kind: 'email' },   // requester's sign-in email — powers "My Requests"
+    { key: 'team', column: 'dropdown_mm5wjexh', kind: 'dropdown' },
+    { key: 'outlet', column: 'dropdown_mm5wktj5', kind: 'dropdown' },
+    { key: 'requestedCompletionDate', column: 'date_mm5wv528', kind: 'date' },
+    { key: 'liveOrOnPropertyDate', column: 'date_mm5wghs9', kind: 'date' },
   ],
 };
 const BC_DONE_GROUP_ID = 'group_mm383p2j';       // "Complete" group on the Business Card board
@@ -235,8 +275,9 @@ const REQUESTED_DATE_FIELD = {
   uniform: 'dueDate',
   creative: 'idealDueDate',
   print: 'neededBy',
-  beo: 'eventDate',
+  beo: 'requestedCompletionDate',
   general: 'dueDate',
+  businesscard: 'requestedCompletionDate',
 };
 
 const EMAIL_LABELS = {
@@ -248,7 +289,8 @@ const EMAIL_LABELS = {
   idealDueDate: 'Ideal due date', projectDescription: 'Project description',
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
-  ccEmail: 'Also notify', team: 'Team',
+  ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet',
+  liveOrOnPropertyDate: 'Live / on property', requestedCompletionDate: 'Requested completion',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
   socialPostDate: 'Date to post',
   cardholderName: 'Full name (on card)', personRequesting: 'Person requesting', jobTitle: 'Job title',
@@ -278,7 +320,7 @@ function escapeHtml(s) {
 function summarizeFields(fields) {
   const rows = [];
   for (const [k, v] of Object.entries(fields)) {
-    if (v === undefined || v === null || v === '' || k === 'name' || k === 'title') continue;
+    if (v === undefined || v === null || v === '' || k === 'name' || k === 'title' || k === 'requestId' || k === 'requestFamilyId') continue;
     if (k === 'outletQuantities' && typeof v === 'object') {
       rows.push(['Menus by outlet', Object.entries(v).map(([o, q]) => `${o}: ${q}`).join(', ')]);
       continue;
@@ -387,6 +429,135 @@ async function uploadFilesToItem(itemId, fileColumn, files) {
 // ---------------------------------------------------------------------------
 const BUCKETS = ['active', 'review', 'progress', 'completed'];
 
+const STATUS_NORMALIZATION = {
+  procurement: { 'New Request': 'new', Sourcing: 'in_progress', 'Working On Design': 'in_progress', 'Ready to Order': 'waiting', Ordered: 'in_progress', 'In Transit': 'in_progress', Delivered: 'complete' },
+  uniform: { 'New Request': 'new', Sourcing: 'in_progress', Ordered: 'in_progress', 'In Transit': 'in_progress', Delivered: 'complete' },
+  creative: { New: 'new', Assigned: 'planned', 'Working On It': 'in_progress', 'Pending Review': 'waiting', Stuck: 'blocked', Completed: 'complete' },
+  print: { New: 'new', 'In Progress': 'in_progress', Printed: 'complete' },
+  beo: { '': 'new', 'Working on it': 'in_progress', Stuck: 'blocked', Done: 'complete' },
+  general: { 'New Request': 'new', 'In Progress': 'in_progress', 'In Review': 'waiting', 'On Hold': 'waiting', Completed: 'complete', Cancelled: 'cancelled' },
+  business_card: { 'Incoming responses': 'new', Complete: 'complete' },
+  social: { Draft: 'planned' },
+};
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requestUuid(value) {
+  const v = String(value || '').trim();
+  return UUID_RE.test(v) ? v.toLowerCase() : crypto.randomUUID();
+}
+
+function childUuid(familyId, childType) {
+  const hex = crypto.createHash('sha256').update(`${familyId}:${childType}`).digest('hex').slice(0, 32).split('');
+  hex[12] = '5';
+  hex[16] = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4];
+  const s = hex.join('');
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20)}`;
+}
+
+function assertCanonical(fields) {
+  const checks = [
+    ['team', CANONICAL.teams],
+    ['outlet', CANONICAL.outlets],
+    ['launchWorkstream', CANONICAL.workstreams],
+    ['launchPriority', CANONICAL.priorities],
+    ['launchImpact', CANONICAL.launchImpacts],
+  ];
+  for (const [key, allowed] of checks) {
+    const value = fields[key];
+    if (value !== undefined && value !== null && String(value).trim() && !allowed.includes(String(value).trim())) {
+      throw badRequest(`Unknown ${key} value "${value}". Please refresh and choose one of the current options.`);
+    }
+  }
+  if (fields.launchImpact === 'launch_related') {
+    const required = ['outlet', 'launchWorkstream', 'launchPriority', 'liveOrOnPropertyDate', 'ownerMondayUserId', 'milestoneItemId'];
+    const missing = required.filter((key) => !fields[key]);
+    if (missing.length) throw badRequest(`Launch-related requests require triage fields before promotion: ${missing.join(', ')}.`);
+  }
+}
+
+function validateCreationFields(category, fields) {
+  const missing = [];
+  if (!fields.team) missing.push('team');
+  if (!getRequesterEmail(fields)) missing.push('requester email');
+  if (!requestedDateFor(category, fields)) missing.push('requested completion date');
+  if (missing.length) throw badRequest(`Missing required integration field(s): ${missing.join(', ')}.`);
+}
+
+function statusFor(category, rawStatus) {
+  const mapping = STATUS_NORMALIZATION[category] || {};
+  return mapping[rawStatus] || null;
+}
+
+function requestedDateFor(category, fields) {
+  const key = {
+    procurement: 'dueDate', uniform: 'dueDate', creative: 'idealDueDate',
+    print: 'neededBy', beo: 'requestedCompletionDate', general: 'dueDate',
+    business_card: 'requestedCompletionDate', social: 'requestedCompletionDate',
+  }[category];
+  return key ? (fields[key] || null) : null;
+}
+
+function liveDateFor(category, fields) {
+  if (category === 'beo') return fields.eventDate || null;
+  if (category === 'social') return fields.socialPostDate || fields.liveOrOnPropertyDate || null;
+  return fields.liveOrOnPropertyDate || null;
+}
+
+function integrationMetadata(category, cfg, fields, ctx) {
+  const rawStatus = ctx.rawStatus == null ? (cfg.defaultStatus || '') : String(ctx.rawStatus);
+  const normalizedStatus = statusFor(category, rawStatus);
+  const syncState = normalizedStatus ? ctx.syncState : 'partial';
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    requestId: ctx.requestId,
+    requestFamilyId: ctx.familyId,
+    parentRequestId: ctx.parentId || null,
+    generatedChild: Boolean(ctx.parentId),
+    childType: ctx.childType || null,
+    sourceApp: 'request_hub',
+    sourceCategory: category,
+    sourceBoardId: String(cfg.boardId),
+    sourceItemId: ctx.itemId ? String(ctx.itemId) : null,
+    sourceUrl: ctx.itemId ? itemUrl(cfg.boardId, ctx.itemId) : null,
+    title: ctx.title,
+    requesterEmail: getRequesterEmail(fields) || null,
+    team: fields.team || null,
+    outlet: fields.outlet || null,
+    workstream: fields.launchWorkstream || null,
+    launchPriority: fields.launchPriority || null,
+    launchImpact: fields.launchImpact || 'unreviewed',
+    requestedCompletionDate: requestedDateFor(category, fields),
+    liveOrOnPropertyDate: liveDateFor(category, fields),
+    workBackDate: fields.workBackDate || null,
+    leadTimeDays: fields.leadTimeDays === '' || fields.leadTimeDays == null ? null : Number(fields.leadTimeDays),
+    eventDate: fields.eventDate || null,
+    rawStatus,
+    normalizedStatus: normalizedStatus || 'new',
+    syncState,
+    syncErrorCode: ctx.syncErrorCode || (normalizedStatus ? null : 'UNKNOWN_STATUS_MAPPING'),
+    createdAt: ctx.createdAt,
+    updatedAt: new Date().toISOString(),
+    lastSyncedAt: syncState === 'synced' ? new Date().toISOString() : null,
+  };
+}
+
+function integrationValues(category, cfg, fields, ctx) {
+  const cols = INTEGRATION_COLUMNS[category];
+  const meta = integrationMetadata(category, cfg, fields, ctx);
+  const cv = {
+    [cols.requestId]: ctx.requestId,
+    [cols.familyId]: ctx.familyId,
+    [cols.metadata]: { text: JSON.stringify(meta) },
+    [cols.sync]: { label: meta.syncState === 'synced' ? 'Synced' : meta.syncState === 'partial' ? 'Partial' : meta.syncState === 'error' ? 'Error' : 'Pending' },
+  };
+  if (ctx.parentId) cv[cols.parentId] = ctx.parentId;
+  if (cols.impact) cv[cols.impact] = { label: meta.launchImpact === 'operational_only' ? 'Operational Only' : meta.launchImpact === 'launch_related' ? 'Launch Related' : 'Unreviewed' };
+  if (cols.workstream && fields.launchWorkstream) cv[cols.workstream] = { labels: [fields.launchWorkstream] };
+  if (cols.priority && fields.launchPriority) cv[cols.priority] = { labels: [fields.launchPriority] };
+  return cv;
+}
+
 function bucketForStatus(label) {
   const s = (label || '').toLowerCase().trim();
   if (!s) return 'active'; // blank status = newly submitted, still active
@@ -475,6 +646,33 @@ async function mondayQuery(query, variables) {
     throw err;
   }
   return json.data;
+}
+
+async function findItemByRequestId(cfg, category, requestId) {
+  const col = INTEGRATION_COLUMNS[category] && INTEGRATION_COLUMNS[category].requestId;
+  if (!col || !requestId) return null;
+  const query = `
+    query ($b: ID!, $cols: [String!], $qp: ItemsQuery) {
+      boards (ids: [$b]) {
+        items_page (limit: 10, query_params: $qp) {
+          items { id name column_values (ids: $cols) { id text } }
+        }
+      }
+    }`;
+  const qp = { rules: [{ column_id: col, compare_value: [requestId], operator: 'contains_text' }], operator: 'and' };
+  const data = await mondayQuery(query, { b: String(cfg.boardId), cols: [col], qp });
+  const items = data.boards[0] ? data.boards[0].items_page.items : [];
+  return items.find((it) => (it.column_values[0] && it.column_values[0].text) === requestId) || null;
+}
+
+async function updateIntegrationState(category, cfg, fields, item, ctx) {
+  const cv = integrationValues(category, cfg, fields, { ...ctx, itemId: item.id, title: item.name });
+  await mondayQuery(
+    `mutation ($b: ID!, $i: ID!, $cv: JSON!) {
+       change_multiple_column_values (board_id: $b, item_id: $i, column_values: $cv, create_labels_if_missing: true) { id }
+     }`,
+    { b: String(cfg.boardId), i: String(item.id), cv: JSON.stringify(cv) }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -604,23 +802,41 @@ async function createBusinessCardRequest(fields, { role, authEmail } = {}) {
   const cfg = BUSINESS_CARD;
   const f = { ...(fields || {}) };
   if (role === 'requester' && authEmail) f.email = authEmail; // confirmation goes to the requester
+  assertCanonical(f);
+  validateCreationFields('business_card', f);
   const name = f.cardholderName || f.name || 'Business Card Request';
+  const requestId = requestUuid(f.requestId);
+  const familyId = requestId;
+  const createdAt = new Date().toISOString();
   const columnValues = buildColumnValues(cfg, f);
-  const data = await mondayQuery(
-    `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
-       create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
-     }`,
-    { boardId: String(cfg.boardId), groupId: cfg.group || null, itemName: name, columnValues: JSON.stringify(columnValues) }
-  );
-  const item = data.create_item;
+  Object.assign(columnValues, integrationValues('business_card', cfg, f, {
+    requestId, familyId, parentId: null, syncState: 'pending', createdAt, title: name, rawStatus: 'Incoming responses',
+  }));
+  let item = await findItemByRequestId(cfg, 'business_card', requestId);
+  const wasExisting = Boolean(item);
+  if (!item) {
+    const data = await mondayQuery(
+      `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
+         create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+       }`,
+      { boardId: String(cfg.boardId), groupId: cfg.group || null, itemName: name, columnValues: JSON.stringify(columnValues) }
+    );
+    item = data.create_item;
+  }
+  await updateIntegrationState('business_card', cfg, f, item, {
+    requestId, familyId, parentId: null, syncState: 'synced', createdAt, rawStatus: 'Incoming responses',
+  });
   const result = {
     ok: true, category: 'creative', board: cfg.label, boardId: cfg.boardId,
     itemId: item.id, itemName: item.name, url: itemUrl(cfg.boardId, item.id),
+    requestId, requestFamilyId: familyId, idempotentReplay: wasExisting,
   };
-  const emailOutcome = await maybeSendConfirmation('businesscard', cfg, f, item);
-  result.emailSent = Boolean(emailOutcome.sent);
-  if (emailOutcome.error) result.emailError = emailOutcome.error;
-  await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
+  if (!wasExisting) {
+    const emailOutcome = await maybeSendConfirmation('businesscard', cfg, f, item);
+    result.emailSent = Boolean(emailOutcome.sent);
+    if (emailOutcome.error) result.emailError = emailOutcome.error;
+    await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
+  }
   return result;
 }
 
@@ -638,8 +854,16 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
   if (role === 'requester' && authEmail && cfg.emailFieldKey) {
     f[cfg.emailFieldKey] = authEmail;
   }
+  assertCanonical(f);
+  validateCreationFields(category, f);
   const name = (f.name || f.title) || `${cfg.label} Request`;
+  const requestId = requestUuid(f.requestId);
+  const familyId = requestId;
+  const createdAt = new Date().toISOString();
   const columnValues = buildColumnValues(cfg, f);
+  Object.assign(columnValues, integrationValues(category, cfg, f, {
+    requestId, familyId, parentId: null, syncState: 'pending', createdAt, title: name,
+  }));
 
   // Print · Menus: expand per-outlet quantities into their columns, set the
   // Outlet(s) dropdown, and total the Quantity column.
@@ -671,14 +895,17 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
       ) { id name }
     }`;
 
-  const data = await mondayQuery(query, {
-    boardId: String(cfg.boardId),
-    groupId: cfg.group || null,
-    itemName: name,
-    columnValues: JSON.stringify(columnValues),
-  });
-
-  const item = data.create_item;
+  let item = await findItemByRequestId(cfg, category, requestId);
+  const wasExisting = Boolean(item);
+  if (!item) {
+    const data = await mondayQuery(query, {
+      boardId: String(cfg.boardId),
+      groupId: cfg.group || null,
+      itemName: name,
+      columnValues: JSON.stringify(columnValues),
+    });
+    item = data.create_item;
+  }
   const result = {
     ok: true,
     category,
@@ -687,10 +914,13 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
     itemId: item.id,
     itemName: item.name,
     url: itemUrl(cfg.boardId, item.id),
+    requestId,
+    requestFamilyId: familyId,
+    idempotentReplay: wasExisting,
   };
 
   // Attach uploaded reference files (best-effort; currently Creative only).
-  if (cfg.fileColumn && Array.isArray(f.files) && f.files.length) {
+  if (!wasExisting && cfg.fileColumn && Array.isArray(f.files) && f.files.length) {
     const up = await uploadFilesToItem(item.id, cfg.fileColumn, f.files);
     result.filesAttached = up.filter((r) => r.ok).length;
     const failed = up.filter((r) => !r.ok);
@@ -711,27 +941,43 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
       descParts.push('Linked creative request: ' + creativeUrl);
       const pf = {
         team: f.team,
+        outlet: f.outlet,
         requesterEmail: f.email,
         ccEmail: f.ccEmail,
         dueDate: f.idealDueDate,
+        liveOrOnPropertyDate: f.liveOrOnPropertyDate,
+        launchImpact: f.launchImpact || 'unreviewed',
+        launchWorkstream: f.launchWorkstream,
+        launchPriority: f.launchPriority,
         itemDescription: f.procurementNotes || f.projectDescription || '',
         quantity: f.procurementQuantity,
         vendor: f.procurementVendor,
         budget: f.procurementBudget,
         notes: descParts.join('\n\n'),
       };
+      assertCanonical(pf);
+      const childRequestId = childUuid(familyId, 'procurement');
       const pcv = buildColumnValues(pcfg, pf);
+      Object.assign(pcv, integrationValues('procurement', pcfg, pf, {
+        requestId: childRequestId, familyId, parentId: requestId, childType: 'procurement',
+        syncState: 'pending', createdAt, title: item.name,
+      }));
       pcv[PROC_LINK_COL] = { url: creativeUrl, text: 'Creative request' }; // clickable link back to creative
-      const pdata = await mondayQuery(
-        `mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
-           create_item (board_id: $boardId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
-         }`,
-        { boardId: String(pcfg.boardId), itemName: item.name, columnValues: JSON.stringify(pcv) }
-      );
-      const procItem = pdata.create_item;
+      let procItem = await findItemByRequestId(pcfg, 'procurement', childRequestId);
+      const procWasExisting = Boolean(procItem);
+      if (!procItem) {
+        const pdata = await mondayQuery(
+          `mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
+             create_item (board_id: $boardId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+           }`,
+          { boardId: String(pcfg.boardId), itemName: item.name, columnValues: JSON.stringify(pcv) }
+        );
+        procItem = pdata.create_item;
+      }
       const procUrl = itemUrl(pcfg.boardId, procItem.id);
       result.procurementItemId = procItem.id;
       result.procurementUrl = procUrl;
+      result.procurementRequestId = childRequestId;
       // Clickable link on the creative item pointing to the procurement item.
       try {
         await mondayQuery(
@@ -740,7 +986,11 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         );
         result.linked = true;
       } catch (e) { result.linkWarning = 'Items created; link cell not set: ' + e.message; }
-      await logAccess(f.email || 'unknown', 'Request submitted', pcfg.label, procItem.name + ' (from Creative)');
+      await updateIntegrationState('procurement', pcfg, pf, procItem, {
+        requestId: childRequestId, familyId, parentId: requestId, childType: 'procurement',
+        syncState: 'synced', createdAt, rawStatus: pcfg.defaultStatus,
+      });
+      if (!procWasExisting) await logAccess(f.email || 'unknown', 'Request submitted', pcfg.label, procItem.name + ' (from Creative)');
     } catch (e) {
       result.procurementError = 'Creative request created, but the linked procurement item failed: ' + e.message;
     }
@@ -753,21 +1003,43 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
   if (category === 'creative' && String(f.contentType || '').toLowerCase() === 'social media' && f.socialPostDate) {
     try {
       const creativeUrl = itemUrl(cfg.boardId, item.id);
+      const sf = {
+        team: f.team,
+        outlet: f.outlet,
+        requesterEmail: f.email,
+        requestedCompletionDate: f.idealDueDate,
+        socialPostDate: f.socialPostDate,
+        launchImpact: f.launchImpact || 'unreviewed',
+        launchWorkstream: f.launchWorkstream,
+        launchPriority: f.launchPriority,
+      };
+      assertCanonical(sf);
+      const childRequestId = childUuid(familyId, 'social');
       const scv = {
         [SOCIAL_BOARD.statusColumn]: { label: SOCIAL_BOARD.defaultStatus },
         [SOCIAL_BOARD.postDateColumn]: { date: String(f.socialPostDate) },
         [SOCIAL_BOARD.linkToCreativeCol]: { url: creativeUrl, text: 'Creative request' },
       };
-      const sdata = await mondayQuery(
-        `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
-           create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
-         }`,
-        { boardId: String(SOCIAL_BOARD.boardId), groupId: SOCIAL_BOARD.group, itemName: item.name, columnValues: JSON.stringify(scv) }
-      );
-      const socialItem = sdata.create_item;
+      if (sf.outlet) scv[SOCIAL_BOARD.brandColumn] = { labels: [sf.outlet] };
+      Object.assign(scv, integrationValues('social', SOCIAL_BOARD, sf, {
+        requestId: childRequestId, familyId, parentId: requestId, childType: 'social',
+        syncState: 'pending', createdAt, title: item.name, rawStatus: SOCIAL_BOARD.defaultStatus,
+      }));
+      let socialItem = await findItemByRequestId(SOCIAL_BOARD, 'social', childRequestId);
+      const socialWasExisting = Boolean(socialItem);
+      if (!socialItem) {
+        const sdata = await mondayQuery(
+          `mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON!) {
+             create_item (board_id: $boardId, group_id: $groupId, item_name: $itemName, column_values: $columnValues, create_labels_if_missing: true) { id name }
+           }`,
+          { boardId: String(SOCIAL_BOARD.boardId), groupId: SOCIAL_BOARD.group, itemName: item.name, columnValues: JSON.stringify(scv) }
+        );
+        socialItem = sdata.create_item;
+      }
       const socialUrl = itemUrl(SOCIAL_BOARD.boardId, socialItem.id);
       result.socialItemId = socialItem.id;
       result.socialUrl = socialUrl;
+      result.socialRequestId = childRequestId;
       // Clickable link on the creative item pointing to the social post.
       try {
         await mondayQuery(
@@ -776,18 +1048,32 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         );
         result.socialLinked = true;
       } catch (e) { result.socialLinkWarning = 'Items created; social link cell not set: ' + e.message; }
-      await logAccess(f.email || 'unknown', 'Request submitted', 'Social & Content', socialItem.name + ' (from Creative)');
+      await updateIntegrationState('social', SOCIAL_BOARD, sf, socialItem, {
+        requestId: childRequestId, familyId, parentId: requestId, childType: 'social',
+        syncState: 'synced', createdAt, rawStatus: SOCIAL_BOARD.defaultStatus,
+      });
+      if (!socialWasExisting) await logAccess(f.email || 'unknown', 'Request submitted', 'Social & Content', socialItem.name + ' (from Creative)');
     } catch (e) {
       result.socialError = 'Creative request created, but the linked social post failed: ' + e.message;
     }
   }
 
-  // Best-effort confirmation email — never block or fail the submission on it.
-  const emailOutcome = await maybeSendConfirmation(category, cfg, f, item);
-  result.emailSent = Boolean(emailOutcome.sent);
-  if (emailOutcome.error) result.emailError = emailOutcome.error;
+  const partial = Boolean(result.procurementError || result.socialError || result.linkWarning || result.socialLinkWarning);
+  await updateIntegrationState(category, cfg, f, item, {
+    requestId, familyId, parentId: null, syncState: partial ? 'partial' : 'synced',
+    syncErrorCode: partial ? 'GENERATED_CHILD_OR_LINK_PARTIAL' : null,
+    createdAt, rawStatus: cfg.defaultStatus || '',
+  });
+  result.syncState = partial ? 'partial' : 'synced';
 
-  await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
+  // Best-effort confirmation email — never block or fail the submission on it.
+  // An idempotent replay resumes integration work without emailing twice.
+  if (!wasExisting) {
+    const emailOutcome = await maybeSendConfirmation(category, cfg, f, item);
+    result.emailSent = Boolean(emailOutcome.sent);
+    if (emailOutcome.error) result.emailError = emailOutcome.error;
+    await logAccess(getRequesterEmail(f) || 'unknown', 'Request submitted', cfg.label, item.name);
+  }
 
   return result;
 }

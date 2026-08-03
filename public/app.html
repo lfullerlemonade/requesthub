@@ -35,7 +35,7 @@
   .nav-section:first-child { margin-top: 0; }
   .nav-item { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; border: none; background: none;
     padding: 9px 10px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--seaweed-70); cursor: pointer;
-    font-family: inherit; border-left: 3px solid transparent; transition: background .12s ease, color .12s ease; }
+    font-family: inherit; text-decoration: none; border-left: 3px solid transparent; transition: background .12s ease, color .12s ease; }
   .nav-item svg { width: 17px; height: 17px; flex: none; color: var(--seaweed-70); }
   .nav-item:hover { background: var(--foam-2); color: var(--seaweed); }
   .nav-item.active { background: var(--foam-2); color: var(--seaweed); font-weight: 600; border-left-color: var(--yellow); }
@@ -575,6 +575,9 @@ NAV.forEach(n => {
   b.addEventListener('click', () => { navTo(n); document.getElementById('shell').classList.remove('nav-open'); });
   sideNav.appendChild(b);
 });
+const launchSection = document.createElement('div'); launchSection.className = 'nav-section'; launchSection.textContent = 'Launch'; sideNav.appendChild(launchSection);
+const launchLink = document.createElement('a'); launchLink.className = 'nav-item'; launchLink.href = 'https://launchcalendar.lemonadehospitality.com/app#?view=requests'; launchLink.target = '_blank'; launchLink.rel = 'noopener';
+launchLink.innerHTML = ICONS.dashboard + '<span>Open Launch Hub</span>'; sideNav.appendChild(launchLink);
 document.getElementById('nav-toggle').addEventListener('click', () => {
   const shell = document.getElementById('shell');
   if (window.matchMedia('(max-width: 900px)').matches) shell.classList.toggle('nav-open'); else shell.classList.toggle('collapsed');
@@ -587,7 +590,7 @@ function navTo(n) {
   else if (n.view === 'submit') { setActiveNav('submit'); showView('submit'); document.getElementById('view-title').textContent = 'Submit Request'; if (n.cat) selectCategory(n.cat); }
   else if (n.view === 'track') { setActiveNav(n.cat); showView('track'); document.getElementById('view-title').textContent = CATEGORIES[n.cat].label;
     document.getElementById('track-title').textContent = CATEGORIES[n.cat].label + ' requests'; currentTrackCat = n.cat;
-    document.getElementById('track-search').value = ''; document.getElementById('track-status').value = ''; loadTrack(n.cat, true); }
+    document.getElementById('track-search').value = n.q || ''; document.getElementById('track-status').value = ''; loadTrack(n.cat, true); }
 }
 
 // ---- Dashboard ----
@@ -926,7 +929,13 @@ async function loadTrack(cat, reset) {
 
 // ---- Init ----
 renderForm();
-navTo({ view: 'dashboard' });
+const initialParams = new URLSearchParams(location.search);
+const initialView = initialParams.get('view');
+const initialCategory = initialParams.get('category');
+const initialQuery = initialParams.get('q') || '';
+if (initialView === 'track' && ROLE === 'admin' && CATEGORIES[initialCategory]) navTo({ view: 'track', cat: initialCategory, q: initialQuery });
+else if (initialView === 'myrequests') navTo({ view: 'myrequests' });
+else navTo({ view: 'dashboard' });
 </script>
 </body>
 </html>

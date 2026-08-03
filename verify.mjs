@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 await fs.access(new URL('./api/monday.js', import.meta.url));
-const moduleUrl = new URL('./api/monday.js?program-verify', import.meta.url);
+const moduleUrl = new URL('./api/monday.js?creative-production-verify', import.meta.url);
 
 process.env.MONDAY_API_TOKEN = 'test-token';
 delete process.env.AUTH_SECRET;
@@ -120,4 +120,49 @@ assert.equal(socialMetadata.programTitle, 'Dog Program');
 assert.equal(payload.requestHubUrl, 'https://requests.lemonadehospitality.com/app?view=myrequests');
 assert.match(payload.launchHubUrl, /launchcalendar\.lemonadehospitality\.com/);
 
-console.log('Controlled Program / Initiative verification passed.');
+const photoRequestId = '22222222-2222-4222-8222-222222222222';
+payload = null;
+res.statusCode = undefined;
+await handler({
+  method: 'POST', headers: {}, body: {
+    action: 'create-routed-request', category: 'creative', fields: {
+      contentType: 'Photography', name: 'Incomplete shoot', team: 'Brand',
+      email: 'tester@example.com', idealDueDate: '2026-08-28',
+      projectDescription: 'Budget is intentionally missing.', intendedUsage: ['Website']
+    }
+  }
+}, res);
+assert.equal(res.statusCode, 400);
+assert.match(payload.error, /estimated budget/);
+
+const photoCallStart = calls.length;
+payload = null;
+res.statusCode = undefined;
+await handler({
+  method: 'POST', headers: {}, body: {
+    action: 'create-routed-request', category: 'creative', fields: {
+      requestId: photoRequestId, requestFamilyId: photoRequestId,
+      contentType: 'Photography', name: 'Summer lifestyle shoot', team: 'Brand',
+      email: 'tester@example.com', idealDueDate: '2026-08-28',
+      projectDescription: 'Lifestyle photography for the fall campaign.',
+      requiresProcurement: 'No',
+      intendedUsage: ['Website', 'Organic Social', 'Paid Social / Advertising'],
+      photographerVideographer: 'Sunny Studio', estimatedBudget: '12500.50'
+    }
+  }
+}, res);
+assert.equal(res.statusCode, 200);
+const photoCreate = calls.slice(photoCallStart).find((call) =>
+  call.query.includes('create_item') && String(call.variables.boardId) === '18421786819');
+assert.ok(photoCreate, 'Photography request should create a Creative item');
+const photoColumns = JSON.parse(photoCreate.variables.columnValues);
+assert.deepEqual(photoColumns.dropdown_mm5ww6cx, { labels: ['Website', 'Organic Social', 'Paid Social / Advertising'] });
+assert.equal(photoColumns.text_mm5wnab3, 'Sunny Studio');
+assert.equal(photoColumns.numeric_mm5wrdh9, '12500.50');
+
+const html = await fs.readFile(new URL('./public/app.html', import.meta.url), 'utf8');
+assert.match(html, /Where will the photos or video be used\?/);
+assert.match(html, /request-table-shell/);
+assert.match(html, /data-showif-values/);
+
+console.log('Program mapping, Creative production intake, and request-table UI verification passed.');

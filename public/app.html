@@ -333,6 +333,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
@@ -347,6 +348,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'dueDate', label: 'Requested Completion Date', type: 'date', required: true },
@@ -362,6 +364,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Project Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'socialPostDate', label: 'Date to Post', type: 'date', showIf: { field: 'contentType', equals: 'Social Media' }, required: true },
     { key: 'cardholderName', label: 'Full Name (as printed on the card)', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
     { key: 'personRequesting', label: 'Person Requesting', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
@@ -387,6 +390,7 @@ const CATEGORIES = {
   print: { label: 'Print', autoName: true, fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Primary Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
     { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
       options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'], showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
@@ -403,6 +407,7 @@ const CATEGORIES = {
     fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'contact', label: 'Contact', type: 'text', required: true },
     { key: 'eventName', label: 'Event Name', type: 'text', required: true },
@@ -425,6 +430,7 @@ const CATEGORIES = {
     { key: 'name', label: 'What do you need?', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'details', label: 'Describe your request or question', type: 'textarea', full: true, required: true },
@@ -755,6 +761,8 @@ CATEGORY_ORDER.forEach((key) => { const cfg = CATEGORIES[key];
 // ---- Submit ----
 let currentCat = 'creative';
 const pendingSubmissionIds = {};
+let PROGRAMS = [];
+let PROGRAMS_LOADED = false;
 function newRequestId() {
   if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -776,6 +784,11 @@ function selectCategory(key) {
 }
 function fieldControl(f) {
   const req = f.required ? ' required' : '';
+  if (f.type === 'program') {
+    const label = PROGRAMS_LOADED ? '— Not connected to a program —' : '— Loading programs… —';
+    return '<select name="'+f.key+'"'+req+(PROGRAMS_LOADED ? '' : ' disabled')+'><option value="">'+label+'</option>'
+      + PROGRAMS.map(p => '<option value="'+esc(p.id)+'">'+esc(programOptionLabel(p))+'</option>').join('') + '</select>';
+  }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
   if (f.type === 'outletqty') return '<div class="outletqty">' + f.options.map(o =>
     '<div class="oq-row"><label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
@@ -783,6 +796,20 @@ function fieldControl(f) {
   if (f.type === 'file') return '<input type="file" name="'+f.key+'" multiple />';
   if (f.type === 'textarea') return '<textarea name="'+f.key+'"'+req+'></textarea>';
   return '<input type="'+f.type+'" name="'+f.key+'"'+req+' />';
+}
+function programOptionLabel(program) {
+  const end = program.timelineEnd || program.liveDate || program.dueDate || '';
+  return program.title + (end ? ' — through ' + end : '');
+}
+async function loadPrograms() {
+  try {
+    const result = await callApi({ action: 'list-programs' });
+    PROGRAMS = result.programs || [];
+  } catch (error) {
+    PROGRAMS = [];
+    toast('Programs could not be loaded: ' + error.message, true);
+  }
+  PROGRAMS_LOADED = true;
 }
 function renderForm() {
   const cfg = CATEGORIES[currentCat]; const form = document.getElementById('request-form');
@@ -876,6 +903,12 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   // Business card: the item name is the cardholder's full name (the Project Name field is hidden).
   if (currentCat === 'creative' && fields.contentType === 'Business Card' && fields.cardholderName) fields.name = fields.cardholderName;
   if (!fields.name) { toast('Please add a title.', true); return; }
+  if (fields.programItemId) {
+    const program = PROGRAMS.find(item => item.id === String(fields.programItemId));
+    if (!program) { toast('Refresh and choose a current Program / Initiative.', true); return; }
+    fields.programTitle = program.title;
+    fields.programUrl = program.url;
+  }
   if (!pendingSubmissionIds[currentCat]) pendingSubmissionIds[currentCat] = newRequestId();
   fields.requestId = pendingSubmissionIds[currentCat];
   fields.requestFamilyId = pendingSubmissionIds[currentCat];
@@ -948,14 +981,17 @@ async function loadTrack(cat, reset) {
 }
 
 // ---- Init ----
-renderForm();
-const initialParams = new URLSearchParams(location.search);
-const initialView = initialParams.get('view');
-const initialCategory = initialParams.get('category');
-const initialQuery = initialParams.get('q') || '';
-if (initialView === 'track' && ROLE === 'admin' && CATEGORIES[initialCategory]) navTo({ view: 'track', cat: initialCategory, q: initialQuery });
-else if (initialView === 'myrequests') navTo({ view: 'myrequests' });
-else navTo({ view: 'dashboard' });
+(async function initializeApp() {
+  await loadPrograms();
+  renderForm();
+  const initialParams = new URLSearchParams(location.search);
+  const initialView = initialParams.get('view');
+  const initialCategory = initialParams.get('category');
+  const initialQuery = initialParams.get('q') || '';
+  if (initialView === 'track' && ROLE === 'admin' && CATEGORIES[initialCategory]) navTo({ view: 'track', cat: initialCategory, q: initialQuery });
+  else if (initialView === 'myrequests') navTo({ view: 'myrequests' });
+  else navTo({ view: 'dashboard' });
+})();
 </script>
 </body>
 </html>

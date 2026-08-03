@@ -417,12 +417,12 @@ const CATEGORIES = {
 };
 
 const COLUMN_LABELS = {
-  color_mm3ym1pj: 'Status', text_mm3ytbvq: 'Department', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
-  color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', text_mm3yghj8: 'Department/Role', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
-  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', text_mm57mzz2: 'Department/Outlet', date_mm57j8b: 'Ideal Due Date',
-  color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
-  color_mm09fjad: 'Status', date_mm58gm0p: 'Event Date', multi_selectoxjp1hu4: 'Type of Event', short_textimp5o09l: 'Guest Count', short_textgjvu15x0: 'Location',
-  color_mm3ztet1: 'Status', dropdown_mm58xgxs: 'Team', date_mm3z4zk3: 'Due Date',
+  color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
+  color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', dropdown_mm57xa91: 'Team', email_mm57fky2: 'Requested By', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
+  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', dropdown_mm575bmp: 'Team', email_mm57jmf2: 'Requested By', date_mm57j8b: 'Ideal Due Date',
+  color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57k4ha: 'Team', email_mm57r2z6: 'Requested By', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
+  color_mm09fjad: 'Status', dropdown_mm58q4be: 'Team', email_mm58rj16: 'Requested By', date_mm58gm0p: 'Event Date', multi_selectoxjp1hu4: 'Type of Event', short_textimp5o09l: 'Guest Count', short_textgjvu15x0: 'Location',
+  color_mm3ztet1: 'Status', dropdown_mm58xgxs: 'Team', email_mm58xcf0: 'Requested By', date_mm3z4zk3: 'Due Date',
 };
 const STATUS_OPTIONS = {
   procurement: ['New Request','Sourcing','Awaiting Design','Ready to Order','Ordered','In Transit','Delivered'],
@@ -432,14 +432,69 @@ const STATUS_OPTIONS = {
   beo: ['Working on it','Done','Stuck'],
   general: ['New Request','In Review','In Progress','On Hold','Completed','Cancelled'],
 };
-function statusColor(label) {
+// Explicit per-category status colors. The old version colored by fuzzy keyword
+// match (e.g. anything with "review" or "pending" got the same blue), which is
+// why "Assigned" and "Pending Review" rendered as nearly the same pill. Each
+// board's workflow steps now get their own hue in sequence so adjacent
+// statuses never collide; terminal states stay green (done) / red (stuck) for
+// a consistent meaning everywhere.
+const STATUS_COLORS = {
+  procurement: {
+    'New Request': { bg:'var(--sand)', fg:'#7a6a2a' },
+    'Sourcing': { bg:'#fbe0c2', fg:'#99560f' },
+    'Awaiting Design': { bg:'#d9f2ee', fg:'#157a6e' },
+    'Ready to Order': { bg:'#ece4f7', fg:'#6a3fa0' },
+    'Ordered': { bg:'#dcebf9', fg:'#006eb6' },
+    'In Transit': { bg:'#fbe0ea', fg:'#a83368' },
+    'Delivered': { bg:'var(--green-bg)', fg:'var(--green)' },
+  },
+  uniform: {
+    'New Request': { bg:'var(--sand)', fg:'#7a6a2a' },
+    'Sourcing': { bg:'#fbe0c2', fg:'#99560f' },
+    'Ordered': { bg:'#dcebf9', fg:'#006eb6' },
+    'In Transit': { bg:'#fbe0ea', fg:'#a83368' },
+    'Delivered': { bg:'var(--green-bg)', fg:'var(--green)' },
+  },
+  creative: {
+    'New': { bg:'var(--sand)', fg:'#7a6a2a' },
+    'Assigned': { bg:'#ece4f7', fg:'#6a3fa0' },
+    'Working On It': { bg:'#dcebf9', fg:'#006eb6' },
+    'Pending Review': { bg:'#e2e8f0', fg:'#3d6395' },
+    'Completed': { bg:'var(--green-bg)', fg:'var(--green)' },
+    'Stuck': { bg:'#fbe3e0', fg:'var(--red)' },
+  },
+  print: {
+    'New': { bg:'var(--sand)', fg:'#7a6a2a' },
+    'In Progress': { bg:'#dcebf9', fg:'#006eb6' },
+    'Printed': { bg:'var(--green-bg)', fg:'var(--green)' },
+  },
+  beo: {
+    'Working on it': { bg:'#dcebf9', fg:'#006eb6' },
+    'Done': { bg:'var(--green-bg)', fg:'var(--green)' },
+    'Stuck': { bg:'#fbe3e0', fg:'var(--red)' },
+  },
+  general: {
+    'New Request': { bg:'var(--sand)', fg:'#7a6a2a' },
+    'In Review': { bg:'#e2e8f0', fg:'#3d6395' },
+    'In Progress': { bg:'#dcebf9', fg:'#006eb6' },
+    'On Hold': { bg:'#fbe0c2', fg:'#99560f' },
+    'Completed': { bg:'var(--green-bg)', fg:'var(--green)' },
+    'Cancelled': { bg:'#fbe3e0', fg:'var(--red)' },
+  },
+};
+function statusColor(label, categoryKey) {
+  const exact = categoryKey && STATUS_COLORS[categoryKey] && STATUS_COLORS[categoryKey][label];
+  if (exact) return exact;
+  // Fallback for labels we don't recognize yet (e.g. a new status option added
+  // directly on the Monday board) — same heuristic as before, kept as a safety net.
   const s = (label || '').toLowerCase();
   if (/(cancel|reject|stuck)/.test(s)) return { bg:'#fbe3e0', fg:'var(--red)' };
   if (/(complete|received|delivered|printed|live|done)/.test(s)) return { bg:'var(--green-bg)', fg:'var(--green)' };
-  if (/(review|pending)/.test(s)) return { bg:'#e6ecf4', fg:'var(--ocean)' };
-  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'#e2eef7', fg:'var(--pool)' };
+  if (/(review|pending)/.test(s)) return { bg:'#e2e8f0', fg:'var(--ocean)' };
+  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return { bg:'#dcebf9', fg:'var(--pool)' };
   return { bg:'var(--sand)', fg:'#7a6a2a' }; // new / active on sand
 }
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Mirrors the server's "completed" bucket so the dashboard feed can hide done work.
 function isDoneStatus(label) { return /(complete|received|delivered|printed|live|\bdone\b|move to dam)/.test((label || '').toLowerCase()); }
 
@@ -544,7 +599,7 @@ function renderBars(id, rows) {
 let dashDrill = {};
 let drillBucket = null;
 function fmtDate(ymd) { if (!ymd) return ''; const d = new Date(ymd + 'T00:00:00'); return isNaN(d) ? ymd : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
-function drillRow(it) { const c = statusColor(it.status);
+function drillRow(it) { const c = statusColor(it.status, it.categoryKey);
   const meta = it.due ? ('Due ' + fmtDate(it.due)) : '';
   return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
     <div class="s-name">${esc(it.name)}</div>
@@ -587,7 +642,7 @@ async function loadDashboard() {
     renderBars('chart-team', Object.entries(counts.openByTeam || {}).sort((a,b) => b[1]-a[1]));
     const active = (recent.items || []).filter(it => !isDoneStatus(it.status)).slice(0, 12);
     if (!active.length) { feed.innerHTML = '<div class="empty">No active requests right now.</div>'; return; }
-    feed.innerHTML = active.map(it => { const c = statusColor(it.status);
+    feed.innerHTML = active.map(it => { const c = statusColor(it.status, it.categoryKey);
       return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
         <div class="s-name">${esc(it.name)}</div>
         <div class="s-tags"><span class="tag">${esc(it.category)}</span>
@@ -599,7 +654,7 @@ async function loadDashboard() {
 // ---- My Requests (Open / Completed = mine; Shared with me = I'm the Also Notify) ----
 let myReqTab = 'open';
 let myReqData = { open: [], done: [], shared: [] };
-function myReqRow(it) { const c = statusColor(it.status);
+function myReqRow(it) { const c = statusColor(it.status, it.categoryKey);
   const meta = (it.shared && it.requestedBy) ? ('From ' + prettyName(it.requestedBy)) : fmtWhen(it.createdAt);
   return `<a class="sub-row" href="${esc(it.url)}" target="_blank" rel="noopener">
     <div class="s-name">${esc(it.name)}</div>
@@ -833,7 +888,8 @@ async function loadTrack(cat, reset) {
     if (trackLoadedFilter.activeOnly) items = items.filter(it => !isDoneStatus(it.status));
     const rowsHtml = items.map(it => {
       const tds = cols.map(c => { const val = it.columns[c] || '';
-        if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') { if (!val) return '<td></td>'; const col = statusColor(val); return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>'; }
+        if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') { if (!val) return '<td></td>'; const col = statusColor(val, cat); return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>'; }
+        if (EMAIL_RE.test(val)) return '<td title="'+esc(val)+'">'+esc(prettyName(val))+'</td>';
         return '<td>'+esc(val)+'</td>'; }).join('');
       return '<tr><td><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a></td>'+tds+'</tr>';
     }).join('');

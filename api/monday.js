@@ -124,6 +124,9 @@ const BOARDS = {
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
       { key: 'referenceLinks', column: 'long_text_mm57mky2', kind: 'long_text' },
+      { key: 'intendedUsage', column: 'dropdown_mm5ww6cx', kind: 'dropdown' },
+      { key: 'photographerVideographer', column: 'text_mm5wnab3', kind: 'text' },
+      { key: 'estimatedBudget', column: 'numeric_mm5wrdh9', kind: 'numbers' },
     ],
   },
   print: {
@@ -293,6 +296,7 @@ const EMAIL_LABELS = {
   ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet / area', programTitle: 'Program / initiative',
   liveOrOnPropertyDate: 'Live / on property', requestedCompletionDate: 'Requested completion',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
+  intendedUsage: 'Intended usage', photographerVideographer: 'Photographer / videographer', estimatedBudget: 'Estimated budget',
   socialPostDate: 'Date to post',
   cardholderName: 'Full name (on card)', personRequesting: 'Person requesting', jobTitle: 'Job title',
   cardEmail: 'Email (on card)', directPhone: 'Direct phone', mobilePhone: 'Mobile phone',
@@ -489,7 +493,19 @@ function validateCreationFields(category, fields) {
   if (!fields.team) missing.push('team');
   if (!getRequesterEmail(fields)) missing.push('requester email');
   if (!requestedDateFor(category, fields)) missing.push('requested completion date');
+  const productionType = category === 'creative' && ['Photography', 'Videography'].includes(String(fields.contentType || ''));
+  if (productionType && (!Array.isArray(fields.intendedUsage) || !fields.intendedUsage.length)) missing.push('intended usage');
+  if (productionType && (fields.estimatedBudget === undefined || fields.estimatedBudget === null || String(fields.estimatedBudget).trim() === '')) missing.push('estimated budget');
   if (missing.length) throw badRequest(`Missing required integration field(s): ${missing.join(', ')}.`);
+  if (Array.isArray(fields.intendedUsage)) {
+    const allowed = ['Website', 'Organic Social', 'Paid Social / Advertising', 'Email', 'Print', 'PR / Press', 'On Property', 'Other'];
+    const unknown = fields.intendedUsage.filter((value) => !allowed.includes(String(value)));
+    if (unknown.length) throw badRequest(`Unknown intended usage "${unknown[0]}". Please refresh and choose a current option.`);
+  }
+  if (productionType) {
+    const budget = Number(fields.estimatedBudget);
+    if (!Number.isFinite(budget) || budget < 0) throw badRequest('Estimated budget must be a valid non-negative amount.');
+  }
 }
 
 function statusFor(category, rawStatus) {

@@ -558,14 +558,13 @@ function integrationValues(category, cfg, fields, ctx) {
   return cv;
 }
 
-function bucketForStatus(label) {
-  const s = (label || '').toLowerCase().trim();
-  if (!s) return 'active'; // blank status = newly submitted, still active
-  if (/(cancel|reject)/.test(s)) return null; // excluded from KPIs
-  if (/(review|pending)/.test(s)) return 'review';
-  if (/(complete|received|delivered|printed|live|\bdone\b|move to dam)/.test(s)) return 'completed';
-  if (/(progress|working|sourcing|ordered|transit|approved|assigned)/.test(s)) return 'progress';
-  return 'active'; // new, new request, awaiting, ready to order, on hold, stuck, etc.
+function bucketForStatus(category, label) {
+  const normalized = statusFor(category, String(label || ''));
+  if (normalized === 'cancelled') return null;
+  if (normalized === 'complete') return 'completed';
+  if (normalized === 'waiting') return 'review';
+  if (normalized === 'planned' || normalized === 'in_progress') return 'progress';
+  return 'active';
 }
 
 // ---------------------------------------------------------------------------
@@ -1191,7 +1190,7 @@ async function dashboardCounts({ role, email } = {}) {
       let open = 0;
       for (const it of items) {
         const brief = { name: it.name, url: itemUrl(cfg.boardId, it.id), category: cfg.label, categoryKey: key, status: it.status, due: it.due };
-        const bucket = bucketForStatus(it.status);
+        const bucket = bucketForStatus(key, it.status);
         const isOpen = bucket !== 'completed' && bucket !== null; // not done, not cancelled
         if (isOpen) {
           open += 1;

@@ -290,7 +290,7 @@ const EMAIL_LABELS = {
   idealDueDate: 'Ideal due date', projectDescription: 'Project description',
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
-  ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet',
+  ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet / area', programTitle: 'Program / initiative',
   liveOrOnPropertyDate: 'Live / on property', requestedCompletionDate: 'Requested completion',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
   socialPostDate: 'Date to post',
@@ -321,7 +321,7 @@ function escapeHtml(s) {
 function summarizeFields(fields) {
   const rows = [];
   for (const [k, v] of Object.entries(fields)) {
-    if (v === undefined || v === null || v === '' || k === 'name' || k === 'title' || k === 'requestId' || k === 'requestFamilyId') continue;
+    if (v === undefined || v === null || v === '' || k === 'name' || k === 'title' || k === 'requestId' || k === 'requestFamilyId' || k === 'programItemId' || k === 'programUrl') continue;
     if (k === 'outletQuantities' && typeof v === 'object') {
       rows.push(['Menus by outlet', Object.entries(v).map(([o, q]) => `${o}: ${q}`).join(', ')]);
       continue;
@@ -540,6 +540,9 @@ function integrationMetadata(category, cfg, fields, ctx) {
     workBackDate: fields.workBackDate || null,
     leadTimeDays: fields.leadTimeDays === '' || fields.leadTimeDays == null ? null : Number(fields.leadTimeDays),
     eventDate: fields.eventDate || null,
+    programItemId: fields.programItemId || null,
+    programTitle: fields.programTitle || null,
+    programUrl: fields.programUrl || null,
     rawStatus,
     normalizedStatus: normalizedStatus || 'new',
     syncState,
@@ -563,6 +566,9 @@ function integrationValues(category, cfg, fields, ctx) {
   if (cols.impact) cv[cols.impact] = { label: meta.launchImpact === 'operational_only' ? 'Operational Only' : meta.launchImpact === 'launch_related' ? 'Launch Related' : 'Unreviewed' };
   if (cols.workstream && fields.launchWorkstream) cv[cols.workstream] = { labels: [fields.launchWorkstream] };
   if (cols.priority && fields.launchPriority) cv[cols.priority] = { labels: [fields.launchPriority] };
+  if (cols.programLink && fields.programItemId && fields.programTitle) {
+    cv[cols.programLink] = { url: fields.programUrl || itemUrl(CONTRACT.launch.defaultBoardId, fields.programItemId), text: fields.programTitle };
+  }
   return cv;
 }
 
@@ -653,6 +659,82 @@ async function mondayQuery(query, variables) {
     throw err;
   }
   return json.data;
+}
+
+const PROGRAM_CACHE_MS = 60 * 1000;
+let programCache = { at: 0, items: null };
+
+function programDate(columns, id) {
+  const column = columns[id];
+  if (!column) return '';
+  try {
+    const value = JSON.parse(column.value || 'null');
+    return String((value && (value.date || value.to || value.from)) || column.text || '').slice(0, 10);
+  } catch (error) { return String(column.text || '').slice(0, 10); }
+}
+
+async function listPrograms() {
+  if (programCache.items && Date.now() - programCache.at < PROGRAM_CACHE_MS) return programCache.items;
+  const columns = CONTRACT.launch.columns;
+  const ids = [columns.type, columns.timeline, columns.liveDate, columns.dueDate];
+  const first = await mondayQuery(
+    `query ($board: [ID!], $cols: [String!]) {
+      boards(ids: $board) {
+        items_page(limit: 500) {
+          cursor items { id name url column_values(ids: $cols) { id text value } }
+        }
+      }
+    }`,
+    { board: [String(CONTRACT.launch.defaultBoardId)], cols: ids }
+  );
+  let page = (((first || {}).boards || [])[0] || {}).items_page;
+  const items = [];
+  while (page) {
+    items.push(...(page.items || []));
+    if (!page.cursor) break;
+    const next = await mondayQuery(
+      `query ($cursor: String!, $cols: [String!]) {
+        next_items_page(cursor: $cursor, limit: 500) {
+          cursor items { id name url column_values(ids: $cols) { id text value } }
+        }
+      }`,
+      { cursor: page.cursor, cols: ids }
+    );
+    page = next.next_items_page;
+  }
+  const programs = items.map((item) => {
+    const byId = {}; (item.column_values || []).forEach((column) => { byId[column.id] = column; });
+    if (String((byId[columns.type] || {}).text || '').trim() !== 'Milestone') return null;
+    let timelineStart = '', timelineEnd = '';
+    try {
+      const timeline = JSON.parse((byId[columns.timeline] || {}).value || 'null');
+      timelineStart = String((timeline && timeline.from) || '').slice(0, 10);
+      timelineEnd = String((timeline && timeline.to) || '').slice(0, 10);
+    } catch (error) { /* timeline is optional */ }
+    return {
+      id: String(item.id), title: String(item.name || 'Untitled program').trim(), url: String(item.url || ''),
+      timelineStart, timelineEnd,
+      liveDate: programDate(byId, columns.liveDate),
+      dueDate: programDate(byId, columns.dueDate)
+    };
+  }).filter(Boolean).sort((left, right) => left.title.localeCompare(right.title));
+  programCache = { at: Date.now(), items: programs };
+  return programs;
+}
+
+async function applyProgramSelection(fields) {
+  const id = String(fields.programItemId || '').trim();
+  if (!id) {
+    delete fields.programItemId; delete fields.programTitle; delete fields.programUrl;
+    return null;
+  }
+  if (!/^\d+$/.test(id)) throw badRequest('Choose a current Program / Initiative from the list.');
+  const program = (await listPrograms()).find((item) => item.id === id);
+  if (!program) throw badRequest('That Program / Initiative is no longer available. Refresh and choose a current milestone.');
+  fields.programItemId = program.id;
+  fields.programTitle = program.title;
+  fields.programUrl = program.url || itemUrl(CONTRACT.launch.defaultBoardId, program.id);
+  return program;
 }
 
 async function findItemByRequestId(cfg, category, requestId) {
@@ -881,6 +963,7 @@ async function createBusinessCardRequest(fields, { role, authEmail } = {}) {
     ok: true, category: 'creative', board: cfg.label, boardId: cfg.boardId,
     itemId: item.id, itemName: item.name, url: itemUrl(cfg.boardId, item.id),
     requestId, requestFamilyId: familyId, idempotentReplay: wasExisting,
+    program: f.programItemId ? { id: f.programItemId, title: f.programTitle, url: f.programUrl } : null,
     requestHubUrl: CONTRACT.urls.requests + '/app?view=myrequests',
     launchHubUrl: CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || ''),
   };
@@ -895,6 +978,7 @@ async function createBusinessCardRequest(fields, { role, authEmail } = {}) {
 
 async function createRoutedRequest({ category, fields, role, authEmail }) {
   const f0 = { ...(fields || {}) };
+  await applyProgramSelection(f0);
   // Business Card is a Creative content type that routes to its own board.
   if (category === 'creative' && String(f0.contentType || '').toLowerCase() === 'business card') {
     return createBusinessCardRequest(f0, { role, authEmail });
@@ -970,6 +1054,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
     requestId,
     requestFamilyId: familyId,
     idempotentReplay: wasExisting,
+    program: f.programItemId ? { id: f.programItemId, title: f.programTitle, url: f.programUrl } : null,
     requestHubUrl: CONTRACT.urls.requests + '/app?view=myrequests',
     launchHubUrl: CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || ''),
   };
@@ -1004,6 +1089,9 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         launchImpact: f.launchImpact || 'unreviewed',
         launchWorkstream: f.launchWorkstream,
         launchPriority: f.launchPriority,
+        programItemId: f.programItemId,
+        programTitle: f.programTitle,
+        programUrl: f.programUrl,
         itemDescription: f.procurementNotes || f.projectDescription || '',
         quantity: f.procurementQuantity,
         vendor: f.procurementVendor,
@@ -1067,6 +1155,9 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         launchImpact: f.launchImpact || 'unreviewed',
         launchWorkstream: f.launchWorkstream,
         launchPriority: f.launchPriority,
+        programItemId: f.programItemId,
+        programTitle: f.programTitle,
+        programUrl: f.programUrl,
       };
       assertCanonical(sf);
       const childRequestId = childUuid(familyId, 'social');
@@ -1526,7 +1617,7 @@ export default async function handler(req, res) {
 
     // Access gate: data actions require a valid token issued by verify-email.
     // The token carries the signed-in email + role, which scopes what they see.
-    const GATED = new Set(['session', 'dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
+    const GATED = new Set(['session', 'list-programs', 'dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
     let authRole = 'admin';
     let scopeRole = 'admin';
     let authEmail = null;
@@ -1563,6 +1654,9 @@ export default async function handler(req, res) {
           },
           schemaVersion: SCHEMA_VERSION
         };
+        break;
+      case 'list-programs':
+        result = { ok: true, programs: await listPrograms(), schemaVersion: SCHEMA_VERSION };
         break;
       case 'create-routed-request':
         result = await createRoutedRequest({ category: params.category, fields: params.fields, role: authRole, authEmail });

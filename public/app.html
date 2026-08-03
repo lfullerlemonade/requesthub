@@ -321,7 +321,9 @@ function getRole() {
 }
 function signOut() {
   try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); localStorage.removeItem('rh_role'); } catch (e) {}
-  location.replace('https://launchcalendar.lemonadehospitality.com/api/signout?return_to=' + encodeURIComponent('https://requests.lemonadehospitality.com/'));
+  // Clear the legacy Request Hub cookie on this domain first; the local
+  // endpoint then clears the shared Launch Hub cookie and returns here.
+  location.replace('/api/signout');
 }
 if (!getToken()) location.replace('/');
 const ROLE = getRole();

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 await fs.access(new URL('./api/monday.js', import.meta.url));
-const moduleUrl = new URL('./api/monday.js?phase5-verify', import.meta.url);
+const moduleUrl = new URL('./api/monday.js?program-verify', import.meta.url);
 
 process.env.MONDAY_API_TOKEN = 'test-token';
 delete process.env.AUTH_SECRET;
@@ -14,7 +14,19 @@ globalThis.fetch = async (_url, options) => {
   const body = JSON.parse(options.body);
   calls.push(body);
   let data;
-  if (body.query.includes('items_page')) {
+  if (body.query.includes('column_values(ids: $cols)') && String(body.variables.board) === '18424230222') {
+    data = { boards: [{ items_page: { cursor: null, items: [{
+      id: '19000000001',
+      name: 'Dog Program',
+      url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001',
+      column_values: [
+        { id: 'dropdown_mm5q4mx2', text: 'Milestone', value: null },
+        { id: 'timerange_mkyp8kx7', text: '2026-08-01 - 2026-10-15', value: '{"from":"2026-08-01","to":"2026-10-15"}' },
+        { id: 'date_mm5qb732', text: '2026-10-15', value: '{"date":"2026-10-15"}' },
+        { id: 'date_mm5w17n3', text: '2026-10-10', value: '{"date":"2026-10-10"}' }
+      ]
+    }] } }] };
+  } else if (body.query.includes('items_page')) {
     data = { boards: [{ items_page: { items: [] } }] };
   } else if (body.query.includes('create_item')) {
     nextItem += 1;
@@ -46,6 +58,9 @@ const req = {
       idealDueDate: '2026-08-10',
       liveOrOnPropertyDate: '2026-08-15',
       socialPostDate: '2026-08-15',
+      programItemId: '19000000001',
+      programTitle: 'dog program typo',
+      programUrl: 'https://wrong.example/program',
       projectDescription: 'Verify the family handoff.',
       requiresProcurement: 'Yes',
       procurementNotes: 'Printed table tent'
@@ -67,6 +82,11 @@ assert.equal(payload.requestFamilyId, requestId);
 assert.equal(payload.syncState, 'synced');
 assert.ok(payload.procurementRequestId);
 assert.ok(payload.socialRequestId);
+assert.deepEqual(payload.program, {
+  id: '19000000001',
+  title: 'Dog Program',
+  url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001'
+});
 
 const creates = calls.filter((call) => call.query.includes('create_item') && call.variables.boardId);
 const byBoard = Object.fromEntries(creates.map((call) => [String(call.variables.boardId), JSON.parse(call.variables.columnValues)]));
@@ -80,10 +100,24 @@ assert.equal(procurement.text_mm5w38ba, requestId);
 assert.equal(procurement.text_mm5wtk63, requestId);
 assert.equal(social.text_mm5wqjed, requestId);
 assert.equal(social.text_mm5wza5g, requestId);
-assert.equal(JSON.parse(procurement.long_text_mm5wq9ad.text).schemaVersion, '1.1.0');
-assert.equal(JSON.parse(social.long_text_mm5w1sxt.text).generatedChild, true);
+assert.deepEqual(root.link_mm5w2hnv, {
+  url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001',
+  text: 'Dog Program'
+});
+assert.deepEqual(procurement.link_mm5wfwm, {
+  url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001',
+  text: 'Dog Program'
+});
+const procurementMetadata = JSON.parse(procurement.long_text_mm5wq9ad.text);
+const socialMetadata = JSON.parse(social.long_text_mm5w1sxt.text);
+assert.equal(procurementMetadata.schemaVersion, '1.2.0');
+assert.equal(procurementMetadata.programItemId, '19000000001');
+assert.equal(procurementMetadata.programTitle, 'Dog Program');
+assert.equal(socialMetadata.generatedChild, true);
+assert.equal(socialMetadata.programItemId, '19000000001');
+assert.equal(socialMetadata.programTitle, 'Dog Program');
 
 assert.equal(payload.requestHubUrl, 'https://requests.lemonadehospitality.com/app?view=myrequests');
 assert.match(payload.launchHubUrl, /launchcalendar\.lemonadehospitality\.com/);
 
-console.log('Phase 5 Request Hub verification passed.');
+console.log('Controlled Program / Initiative verification passed.');

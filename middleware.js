@@ -1,54 +1,36 @@
-// Vercel Edge Middleware — server-side guard for the app page.
-// Runs BEFORE the /app page is served. If AUTH_SECRET is set and the request
-// doesn't carry a valid signed session cookie (issued by verify-email on the
-// sign-in page), the visitor is redirected to the sign-in gate at "/".
-// If AUTH_SECRET is unset, the gate is off and the page is served normally.
-
 export const config = { matcher: ['/app', '/app.html'] };
 
-export default async function middleware(request) {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) return; // gate not configured → allow through
-
-  const cookie = request.headers.get('cookie') || '';
-  const match = cookie.match(/(?:^|;\s*)rh_session=([^;]+)/);
-  const token = match ? decodeURIComponent(match[1]) : '';
-
-  if (await isValidToken(token, secret)) return; // valid session → allow
-
-  const url = new URL(request.url);
-  url.pathname = '/';
-  url.search = '';
-  return Response.redirect(url, 307);
+function b64urlDecode(value) {
+  value = value.replace(/-/g, '+').replace(/_/g, '/');
+  while (value.length % 4) value += '=';
+  return atob(value);
 }
 
-async function isValidToken(token, secret) {
-  if (!token || !token.includes('.')) return false;
-  const [b64, sig] = token.split('.');
+async function validLegacy(token, secret) {
+  if (!token || !secret || !token.includes('.')) return false;
+  const parts = token.split('.');
   try {
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const macBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(b64));
-    const expected = [...new Uint8Array(macBuf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    if (expected !== sig) return false;
-    const payload = b64urlDecode(b64);
-    // Token payload is "email|role|exp" (exp is always the LAST segment).
-    const parts = payload.split('|');
-    const exp = Number(parts[parts.length - 1]);
-    if (!exp || exp < Date.now()) return false;
-    return true;
-  } catch (e) {
-    return false;
-  }
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+    const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(parts[0]));
+    const expected = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const payload = b64urlDecode(parts[0]).split('|');
+    return expected === parts[1] && Number(payload[payload.length - 1]) > Date.now();
+  } catch (error) { return false; }
 }
 
-function b64urlDecode(s) {
-  s = s.replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  return atob(s);
+export default async function middleware(request) {
+  const cookie = request.headers.get('cookie') || '';
+  const legacy = /(?:^|;\s*)rh_session=([^;]+)/.exec(cookie);
+  if (legacy && await validLegacy(decodeURIComponent(legacy[1]), process.env.AUTH_SECRET)) return;
+
+  if (/(?:^|;\s*)lh_shared_session=/.test(cookie)) {
+    try {
+      const response = await fetch('https://launchcalendar.lemonadehospitality.com/api/auth/session', { headers: { cookie } });
+      const session = await response.json();
+      if (response.ok && session.authenticated && session.permissions && session.permissions.role) return;
+    } catch (error) { /* redirect to the shared gate */ }
+  }
+
+  const url = new URL(request.url); url.pathname = '/'; url.search = '';
+  return Response.redirect(url, 307);
 }

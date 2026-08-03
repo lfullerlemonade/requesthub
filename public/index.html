@@ -8,127 +8,49 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --foam: #fbf8f0; --white: #fff; --seaweed: #092e36; --yellow: #ffc03f;
-    --sand: #faf1c0; --ocean: #3d6395; --line: rgba(9,46,54,0.14); --muted: #6d7a77; --red: #b23a2e;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: var(--foam); color: var(--seaweed);
-    font-family: "Poppins", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
-    display: grid; place-items: center; padding: 24px; }
-  .card { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 38px 34px;
-    width: 100%; max-width: 430px; box-shadow: 0 12px 40px rgba(9,46,54,0.07); }
-  .logo { height: 40px; width: auto; margin-bottom: 22px; display: block; }
-  h1 { font-family: "Poppins", -apple-system, system-ui, sans-serif; font-weight: 600; font-size: 24px; margin: 0 0 6px; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); font-size: 14px; margin: 0 0 26px; line-height: 1.5; }
-  label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 7px; color: var(--seaweed); }
-  input { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px;
-    font-family: inherit; color: var(--seaweed); background: #fff; }
-  input:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(255,192,63,0.28); }
-  button { width: 100%; margin-top: 16px; padding: 13px; border: none; border-radius: 10px; background: var(--seaweed);
-    color: var(--foam); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity .15s ease; }
-  button:hover { opacity: .92; } button:disabled { opacity: .55; cursor: default; }
-  .msg { margin-top: 15px; font-size: 13.5px; line-height: 1.5; display: none; }
-  .msg.show { display: block; }
-  .msg.error { color: var(--red); }
-  .foot { margin-top: 24px; font-size: 12px; color: var(--muted); text-align: center; }
+  :root { --foam:#fbf8f0; --white:#fff; --seaweed:#092e36; --yellow:#ffc03f; --line:rgba(9,46,54,.14); --muted:#6d7a77; --red:#b23a2e; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--foam); color:var(--seaweed); font-family:"Poppins",system-ui,sans-serif; display:grid; place-items:center; padding:24px; }
+  .card { width:100%; max-width:430px; padding:38px 34px; background:var(--white); border:1px solid var(--line); border-radius:18px; box-shadow:0 12px 40px rgba(9,46,54,.07); }
+  .logo { height:40px; margin-bottom:22px; }
+  h1 { margin:0 0 6px; font-size:24px; font-weight:600; }
+  p { margin:0 0 24px; color:var(--muted); font-size:14px; line-height:1.55; }
+  .button { display:block; width:100%; padding:13px; border:0; border-radius:10px; background:var(--seaweed); color:var(--foam); text-align:center; text-decoration:none; font-size:15px; font-weight:600; }
+  .button:hover { opacity:.92; }
+  .status { min-height:21px; margin-top:14px; color:var(--muted); font-size:12.5px; line-height:1.5; text-align:center; }
+  .status.error { color:var(--red); }
+  .foot { margin-top:22px; color:var(--muted); font-size:11.5px; text-align:center; }
 </style>
 </head>
 <body>
-  <div class="card">
+  <main class="card">
     <img class="logo" src="logo.svg" alt="The Sunny" />
     <h1>Request Hub</h1>
-    <p class="sub">Centralized Marketing Request System</p>
-    <form id="gate-form" autocomplete="on">
-      <label for="email">Work email</label>
-      <input type="email" id="email" name="email" placeholder="e.g. you@thesunnyhotel.com" required autocomplete="email" />
-      <button type="submit" id="go">Continue</button>
-    </form>
-    <div class="msg" id="msg"></div>
-    <div class="foot">Access is limited to approved team members.</div>
-  </div>
-
+    <p>Submit and track requests with the same verified account you use for Launch Hub.</p>
+    <a class="button" id="signin" href="https://launchcalendar.lemonadehospitality.com/api/auth/start?return_to=https%3A%2F%2Frequests.lemonadehospitality.com%2Fapp">Sign in with your work email</a>
+    <div class="status" id="status">Checking your session…</div>
+    <div class="foot">Access and visibility are managed in Monday.</div>
+  </main>
 <script>
-const API = '/api/monday';
-
-// Clear any saved session and stay on the gate.
-function clearSession() {
+function saveSession(session) {
   try {
-    localStorage.removeItem('rh_token');
-    localStorage.removeItem('rh_email');
-    localStorage.removeItem('rh_role');
-  } catch (e) {}
+    localStorage.setItem('rh_token', 'shared');
+    localStorage.setItem('rh_email', session.email || '');
+    localStorage.setItem('rh_role', session.role === 'admin' ? 'admin' : 'requester');
+  } catch (error) {}
 }
-
-// A token is "b64.sig" whose b64 decodes to "email|role|exp" (exp last).
-// The "open" sentinel means the server gate is turned off. We only check the
-// expiry client-side here — the server/middleware still verifies the signature.
-function tokenLooksValid(token) {
-  if (!token) return false;
-  if (token === 'open') return true;
+(async function () {
+  const status = document.getElementById('status');
+  const params = new URLSearchParams(location.search);
+  if (params.get('error')) { status.textContent = params.get('error'); status.className = 'status error'; return; }
   try {
-    if (!token.includes('.')) return false;
-    const b64 = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = atob(b64);
-    const parts = payload.split('|');
-    const exp = Number(parts[parts.length - 1]);
-    return Boolean(exp) && exp > Date.now();
-  } catch (e) {
-    return false;
-  }
-}
-
-// If already signed in, skip the gate — but never redirect blindly. A stale
-// localStorage token (expired, or with a session cookie the server rejects)
-// used to bounce forever between "/" and "/app". Guard against both:
-//   1. Drop expired/garbage tokens client-side and show the gate.
-//   2. One-shot loop-breaker: if we redirected to /app moments ago and landed
-//      back here, the cookie was rejected — clear the token and show the gate.
-(function () {
-  let token = null;
-  try { token = localStorage.getItem('rh_token'); } catch (e) {}
-  if (!token) return;                 // no token → show the gate
-  if (!tokenLooksValid(token)) { clearSession(); return; }
-
-  try {
-    const bouncedAt = Number(sessionStorage.getItem('rh_redirecting') || 0);
-    if (bouncedAt && (Date.now() - bouncedAt) < 5000) {
-      sessionStorage.removeItem('rh_redirecting');
-      clearSession();
-      return;                         // came straight back from /app → gate rejected us
-    }
-    sessionStorage.setItem('rh_redirecting', String(Date.now()));
-  } catch (e) {}
-
-  location.replace('app');
+    const response = await fetch('/api/monday?action=session', { credentials:'same-origin' });
+    const session = await response.json().catch(() => null);
+    if (response.ok && session && session.ok) { saveSession(session); location.replace('/app'); return; }
+  } catch (error) {}
+  try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); localStorage.removeItem('rh_role'); } catch (error) {}
+  status.textContent = 'Use a verified work email to continue.';
 })();
-
-const form = document.getElementById('gate-form');
-const msg = document.getElementById('msg');
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('go');
-  const email = document.getElementById('email').value.trim();
-  msg.className = 'msg';
-  btn.disabled = true; btn.textContent = 'Checking…';
-  try {
-    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'verify-email', email }) });
-    const json = await res.json().catch(() => ({ ok: false, error: 'Unexpected response.' }));
-    if (!res.ok || json.ok === false) throw new Error(json.error || 'Something went wrong.');
-    if (json.approved) {
-      try { localStorage.setItem('rh_token', json.token); localStorage.setItem('rh_email', json.email || email); localStorage.setItem('rh_role', json.role || 'requester'); } catch (e) {}
-      location.href = 'app';
-    } else {
-      msg.textContent = "That email isn't on the approved list. Check the address, or ask an admin to add you.";
-      msg.className = 'msg show error';
-      btn.disabled = false; btn.textContent = 'Continue';
-    }
-  } catch (err) {
-    msg.textContent = err.message;
-    msg.className = 'msg show error';
-    btn.disabled = false; btn.textContent = 'Continue';
-  }
-});
 </script>
 </body>
 </html>

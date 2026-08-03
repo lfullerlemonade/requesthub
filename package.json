@@ -1,10 +1,9 @@
 {
   "name": "request-hub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Standalone Request Hub — dynamic intake + tracking that writes into Monday boards via a serverless token proxy.",
+  "description": "Request Hub and Launch Hub shared intake infrastructure.",
   "type": "module",
-  "engines": {
-    "node": ">=18"
-  }
+  "scripts": { "test": "node verify.mjs" },
+  "engines": { "node": ">=18" }
 }

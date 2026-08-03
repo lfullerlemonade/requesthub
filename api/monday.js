@@ -11,17 +11,17 @@
 //   - list-board-items       { category, search?, status?, cursor?, limit? }
 
 import crypto from 'node:crypto';
+import CONTRACT from '../lib/integration-contract.cjs';
 
 const MONDAY_API_URL = 'https://api.monday.com/v2';
 const MONDAY_API_VERSION = '2024-10';
 const ACCOUNT_SLUG = 'hbcapital'; // used to build item deep-links
-const SCHEMA_VERSION = '1.0.0';
+const SCHEMA_VERSION = CONTRACT.schemaVersion;
+const SHARED_AUTH_SESSION_URL = CONTRACT.urls.launch + '/api/auth/session';
 
 const CANONICAL = {
-  teams: ['Sales', 'Front Office', 'Rooms', 'F&B', 'Pool & Beach', 'Engineering', 'Housekeeping', 'Marketing', 'Ownership', 'Brand'],
-  outlets: ['Campaigns', 'The Sunny', 'Julene', 'Citrus Shack', 'Lovebirds', 'Sandbar', 'Newport Room', 'Pool / Beach', 'Rooms / E-commerce'],
-  workstreams: ['Partnerships', 'Programming & Activations', 'Content Creation / Organic Social', 'PR', 'Paid Social / Media', 'Digital', 'Influencers', 'Campaign', 'Brand', 'Misc Procurement'],
-  priorities: ['P0 - Blocker', 'P0 - Deadline', 'P0 - Launch', 'P1 - This Week', 'P1 - August', 'P1 - September', 'P2 - July', 'P3 - Post Launch'],
+  teams: ['Sales', 'Front Office', 'Rooms', 'F&B', 'Pool & Beach', 'Engineering', 'Housekeeping', 'Marketing', 'Ownership', 'Brand', 'Guest Services'],
+  ...CONTRACT.canonical,
   launchImpacts: ['unreviewed', 'operational_only', 'launch_related'],
 };
 
@@ -38,6 +38,7 @@ const INTEGRATION_COLUMNS = {
   business_card: { requestId: 'text_mm5w38ws', familyId: 'text_mm5wm72t', parentId: 'text_mm5w2797', metadata: 'long_text_mm5wtpet', sync: 'color_mm5wwpwt', impact: 'color_mm5wdwwa', workstream: 'dropdown_mm5wbd8f', priority: 'dropdown_mm5wspg8', outlet: 'dropdown_mm5wktj5', liveDate: 'date_mm5wghs9', team: 'dropdown_mm5wjexh', requestedDate: 'date_mm5wv528' },
   social: { requestId: 'text_mm5w82sv', familyId: 'text_mm5wqjed', parentId: 'text_mm5wza5g', metadata: 'long_text_mm5w1sxt', sync: 'color_mm5wryye' },
 };
+Object.assign(INTEGRATION_COLUMNS, CONTRACT.integrationColumns);
 
 // ---------------------------------------------------------------------------
 // Board routing + column map. This is the authoritative config for writes.
@@ -336,6 +337,8 @@ function buildEmailSummary(category, cfg, fields, item) {
   const expected = prettyDate(String(fields[REQUESTED_DATE_FIELD[category]] || ''));
   const rows = summarizeFields(fields);
   const subject = `We received your ${cfg.label} request: ${item.name}`;
+  const requestHubUrl = CONTRACT.urls.requests + '/app?view=myrequests';
+  const launchHubUrl = CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || '');
 
   const rowsHtml = rows.map(([l, v]) =>
     `<tr><td style="padding:6px 14px 6px 0;color:#6d7a77;font-size:13px;vertical-align:top;white-space:nowrap">${escapeHtml(l)}</td><td style="padding:6px 0;color:#092e36;font-size:14px">${escapeHtml(v)}</td></tr>`
@@ -351,14 +354,17 @@ function buildEmailSummary(category, cfg, fields, item) {
     <p style="font-size:15px;font-weight:700;margin:16px 0 6px">${escapeHtml(item.name)}</p>
     <table style="border-collapse:collapse">${rowsHtml}</table>
     ${expectedBlock}
+    <p style="margin:22px 0 0"><a href="${requestHubUrl}" style="display:inline-block;background:#092e36;color:#fbf8f0;text-decoration:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700">Track this request</a></p>
+    <p style="margin:12px 0 0;font-size:12px;color:#6d7a77">Launch-related work will also appear in <a href="${launchHubUrl}" style="color:#006eb6">Launch Hub</a> after triage.</p>
     <p style="margin:22px 0 0;font-size:12px;color:#6d7a77">You'll be updated as your request progresses.</p>
   </div>`;
 
   const text = `Thanks — we received your ${cfg.label} request.\n\n${item.name}\n`
     + rows.map(([l, v]) => `- ${l}: ${v}`).join('\n')
-    + (expected ? `\n\nExpected completion: ${expected}` : '\n\nNo target date was provided.');
+    + (expected ? `\n\nExpected completion: ${expected}` : '\n\nNo target date was provided.')
+    + `\n\nTrack your request: ${requestHubUrl}\nLaunch Hub: ${launchHubUrl}`;
 
-  return { subject, html, text, expected };
+  return { subject, html, text, expected, requestHubUrl, launchHubUrl };
 }
 
 async function maybeSendConfirmation(category, cfg, fields, item) {
@@ -381,6 +387,8 @@ async function maybeSendConfirmation(category, cfg, fields, item) {
         category: cfg.label,
         requestName: item.name,
         expectedCompletion: summary.expected,
+        requestHubUrl: summary.requestHubUrl,
+        launchHubUrl: summary.launchHubUrl,
       }),
     });
     if (!resp.ok) {
@@ -695,9 +703,10 @@ const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 // Access (Users) board — the source of truth for who can sign in and their role.
 // Each row is one person: Email + Role (Admin | Requester). Admins see everything;
 // requesters see only their own requests. Manage it in Monday, no redeploy needed.
-const USERS_BOARD = 18421837454;
-const USERS_EMAIL_COL = 'email_mm578403';
-const USERS_ROLE_COL = 'color_mm57b54n';
+const USERS_BOARD = Number(CONTRACT.users.boardId);
+const USERS_COLS = CONTRACT.users.columns;
+const USERS_EMAIL_COL = USERS_COLS.email;
+const USERS_ROLE_COL = USERS_COLS.role;
 
 function approvedEmails() {
   return String(process.env.APPROVED_EMAILS || '')
@@ -711,7 +720,15 @@ function authConfigured() { return Boolean(process.env.AUTH_SECRET); }
 // used ONLY when the person isn't on the board, or when Monday can't be reached
 // (so an outage can't lock admins out). This ordering means you manage roles on
 // the board alone and never have to touch the env var to demote someone.
-async function getUserRole(email) {
+function checkedColumn(column) {
+  if (!column) return false;
+  try {
+    const value = JSON.parse(column.value || 'null');
+    return Boolean(value && (value.checked === true || value.checked === 'true')) || Boolean(column.text);
+  } catch (error) { return Boolean(column.text); }
+}
+
+async function getUserPermissions(email) {
   const clean = String(email || '').trim().toLowerCase();
   if (!clean) return null;
   try {
@@ -719,26 +736,39 @@ async function getUserRole(email) {
       query ($b: ID!, $cols: [String!], $qp: ItemsQuery) {
         boards (ids: [$b]) {
           items_page (limit: 50, query_params: $qp) {
-            items { column_values (ids: $cols) { id text } }
+            items { column_values (ids: $cols) { id text value } }
           }
         }
       }`;
     const qp = { rules: [{ column_id: USERS_EMAIL_COL, compare_value: [clean], operator: 'contains_text' }], operator: 'and' };
-    const data = await mondayQuery(query, { b: String(USERS_BOARD), cols: [USERS_EMAIL_COL, USERS_ROLE_COL], qp });
+    const data = await mondayQuery(query, { b: String(USERS_BOARD), cols: Object.values(USERS_COLS), qp });
     for (const it of (data.boards[0] ? data.boards[0].items_page.items : [])) {
       const byId = {};
-      for (const c of it.column_values) byId[c.id] = (c.text || '').trim();
-      if ((byId[USERS_EMAIL_COL] || '').toLowerCase() === clean) {
-        // On the board → board role is authoritative (overrides APPROVED_EMAILS).
-        return (byId[USERS_ROLE_COL] || '').toLowerCase() === 'admin' ? 'admin' : 'requester';
+      for (const c of it.column_values) byId[c.id] = c;
+      const text = (id) => String((byId[id] || {}).text || '').trim();
+      if (text(USERS_EMAIL_COL).toLowerCase() === clean) {
+        const boardRole = text(USERS_ROLE_COL).toLowerCase();
+        return {
+          email: clean,
+          role: boardRole === 'admin' ? 'admin' : (boardRole === 'requester' ? 'requester' : null),
+          requestVisibility: text(USERS_COLS.requestVisibility).toLowerCase() === 'all' ? 'all' : 'own',
+          launchAccess: text(USERS_COLS.launchAccess) || 'None',
+          canTriageRequests: checkedColumn(byId[USERS_COLS.canTriage]),
+          canManageIntegration: checkedColumn(byId[USERS_COLS.canManageIntegration])
+        };
       }
     }
     // Not on the board → break-glass list may still grant admin, else blocked.
-    return approvedEmails().includes(clean) ? 'admin' : null;
+    return approvedEmails().includes(clean) ? { email: clean, role: 'admin', requestVisibility: 'all', launchAccess: 'Edit', canTriageRequests: true, canManageIntegration: true } : null;
   } catch (e) {
     // Monday unreachable → fall back to the break-glass list so admins aren't locked out.
-    return approvedEmails().includes(clean) ? 'admin' : null;
+    return approvedEmails().includes(clean) ? { email: clean, role: 'admin', requestVisibility: 'all', launchAccess: 'Edit', canTriageRequests: true, canManageIntegration: true } : null;
   }
+}
+
+async function getUserRole(email) {
+  const permissions = await getUserPermissions(email);
+  return permissions && permissions.role;
 }
 
 function issueToken(email, role) {
@@ -764,6 +794,28 @@ function verifyToken(token) {
   const email = parts[0], role = parts[1], expStr = parts[2];
   if (!email || !expStr || Number(expStr) < Date.now()) return { valid: false };
   return { valid: true, email, role: role === 'admin' ? 'admin' : 'requester' };
+}
+
+function requestCookie(req, name) {
+  const match = new RegExp('(?:^|;\\s*)' + name + '=([^;]+)').exec(req.headers.cookie || '');
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+async function authenticateRequest(req, suppliedToken) {
+  if (requestCookie(req, 'lh_shared_session')) {
+    try {
+      const response = await fetch(SHARED_AUTH_SESSION_URL, { headers: { cookie: req.headers.cookie || '' } });
+      const session = await response.json().catch(() => null);
+      if (response.ok && session && session.authenticated && session.permissions && session.permissions.role) {
+        return { valid: true, email: session.email, ...session.permissions };
+      }
+    } catch (error) { /* legacy session remains available during transition */ }
+  }
+  const legacy = verifyToken(suppliedToken || requestCookie(req, 'rh_session'));
+  if (!legacy.valid) return { valid: false };
+  if (!legacy.email) return { ...legacy, requestVisibility: legacy.role === 'admin' ? 'all' : 'own' };
+  const permissions = await getUserPermissions(legacy.email);
+  return permissions && permissions.role ? { valid: true, ...permissions } : { valid: false };
 }
 
 async function logAccess(email, eventLabel, category, detail) {
@@ -829,6 +881,8 @@ async function createBusinessCardRequest(fields, { role, authEmail } = {}) {
     ok: true, category: 'creative', board: cfg.label, boardId: cfg.boardId,
     itemId: item.id, itemName: item.name, url: itemUrl(cfg.boardId, item.id),
     requestId, requestFamilyId: familyId, idempotentReplay: wasExisting,
+    requestHubUrl: CONTRACT.urls.requests + '/app?view=myrequests',
+    launchHubUrl: CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || ''),
   };
   if (!wasExisting) {
     const emailOutcome = await maybeSendConfirmation('businesscard', cfg, f, item);
@@ -916,6 +970,8 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
     requestId,
     requestFamilyId: familyId,
     idempotentReplay: wasExisting,
+    requestHubUrl: CONTRACT.urls.requests + '/app?view=myrequests',
+    launchHubUrl: CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || ''),
   };
 
   // Attach uploaded reference files (best-effort; currently Creative only).
@@ -1470,36 +1526,55 @@ export default async function handler(req, res) {
 
     // Access gate: data actions require a valid token issued by verify-email.
     // The token carries the signed-in email + role, which scopes what they see.
-    const GATED = new Set(['dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
+    const GATED = new Set(['session', 'dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
     let authRole = 'admin';
+    let scopeRole = 'admin';
     let authEmail = null;
+    let authPermissions = null;
     if (GATED.has(action)) {
-      const auth = verifyToken(params.token);
+      const auth = await authenticateRequest(req, params.token);
       if (!auth.valid) { res.status(401).json({ ok: false, error: 'Not authorized — please sign in again.', authRequired: true }); return; }
       authRole = auth.role || 'requester';
       authEmail = auth.email;
+      authPermissions = auth;
+      scopeRole = auth.requestVisibility === 'all' ? 'admin' : 'requester';
     }
 
     let result;
     switch (action) {
       case 'verify-email':
+        if (String(process.env.ALLOW_LEGACY_EMAIL_GATE || '').toLowerCase() !== 'true') {
+          res.status(410).json({ ok: false, error: 'Please use verified WorkOS sign-in.' }); return;
+        }
         result = await verifyEmailAction({ email: params.email });
         // Issue an HttpOnly session cookie so the Edge middleware can guard /app.
         if (result && result.approved && result.token && result.token !== 'open') {
           res.setHeader('Set-Cookie', `rh_session=${result.token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${12 * 60 * 60}`);
         }
         break;
+      case 'session':
+        result = {
+          ok: true, email: authEmail, role: authRole,
+          permissions: {
+            requestVisibility: authPermissions.requestVisibility || 'own',
+            launchAccess: authPermissions.launchAccess || 'None',
+            canTriageRequests: Boolean(authPermissions.canTriageRequests),
+            canManageIntegration: Boolean(authPermissions.canManageIntegration)
+          },
+          schemaVersion: SCHEMA_VERSION
+        };
+        break;
       case 'create-routed-request':
         result = await createRoutedRequest({ category: params.category, fields: params.fields, role: authRole, authEmail });
         break;
       case 'dashboard-counts':
-        result = await dashboardCounts({ role: authRole, email: authEmail });
+        result = await dashboardCounts({ role: scopeRole, email: authEmail });
         break;
       case 'recent-submissions':
-        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: authRole, email: authEmail, mine: Boolean(params.mine) });
+        result = await recentSubmissions({ limit: params.limit ? Number(params.limit) : 15, role: scopeRole, email: authEmail, mine: Boolean(params.mine) });
         break;
       case 'top-requesters':
-        result = await topRequesters({ role: authRole, email: authEmail, days: params.days ? Number(params.days) : 7, top: params.top ? Number(params.top) : 3 });
+        result = await topRequesters({ role: scopeRole, email: authEmail, days: params.days ? Number(params.days) : 7, top: params.top ? Number(params.top) : 3 });
         break;
       case 'list-board-items':
         result = await listBoardItems({
@@ -1508,7 +1583,7 @@ export default async function handler(req, res) {
           status: params.status,
           cursor: params.cursor,
           limit: params.limit ? Number(params.limit) : 25,
-          role: authRole,
+          role: scopeRole,
           email: authEmail,
         });
         break;

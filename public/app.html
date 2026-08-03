@@ -238,6 +238,7 @@
         <p class="welcome-sub">Choose a category, then fill in the details</p>
         <div class="cat-picker" id="cat-picker"></div>
         <div class="card-block"><form id="request-form" autocomplete="off"></form></div>
+        <div class="card-block" id="submission-success" hidden style="margin-top:14px;background:var(--green-bg);border-color:rgba(31,138,91,.25)"></div>
       </section>
 
       <section class="view" id="view-myrequests">
@@ -295,7 +296,10 @@ function getRole() {
   if (r) { try { localStorage.setItem('rh_role', r); } catch (e) {} return r; }  // resync cached key
   try { return localStorage.getItem('rh_role') === 'admin' ? 'admin' : 'requester'; } catch (e) { return 'requester'; }
 }
-function signOut() { try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); localStorage.removeItem('rh_role'); } catch (e) {} location.replace('/'); }
+function signOut() {
+  try { localStorage.removeItem('rh_token'); localStorage.removeItem('rh_email'); localStorage.removeItem('rh_role'); } catch (e) {}
+  location.replace('https://launchcalendar.lemonadehospitality.com/api/signout?return_to=' + encodeURIComponent('https://requests.lemonadehospitality.com/'));
+}
 if (!getToken()) location.replace('/');
 const ROLE = getRole();
 
@@ -322,13 +326,13 @@ const CATEGORY_ICON = { procurement: 'cart', uniform: 'shirt', creative: 'palett
 // Display order across the Hub (cat picker, quick actions, nav, dashboard chart).
 const CATEGORY_ORDER = ['creative', 'procurement', 'print', 'uniform', 'beo', 'general'];
 
-const TEAMS = ['Sales','Front Office','Rooms','F&B','Pool & Beach','Engineering','Housekeeping','Marketing','Ownership','Brand'];
-const OUTLETS = ['Campaigns','The Sunny','Julene','Citrus Shack','Lovebirds','Sandbar','Newport Room','Pool / Beach','Rooms / E-commerce'];
+const TEAMS = ['Sales','Front Office','Rooms','F&B','Pool & Beach','Engineering','Housekeeping','Marketing','Ownership','Brand','Guest Services'];
+const OUTLETS = ['Campaigns','The Sunny','Julene','Citrus Shack','Lovebirds','Sandbar','Newport Room','Pool / Beach','Rooms / E-commerce','Lobby'];
 const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
@@ -342,7 +346,7 @@ const CATEGORIES = {
   uniform: { label: 'Uniform', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'dueDate', label: 'Requested Completion Date', type: 'date', required: true },
@@ -357,7 +361,7 @@ const CATEGORIES = {
     { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Photography','Videography','Social Media','Business Card','Copywriting','Deck','Other'] },
     { key: 'name', label: 'Project Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'socialPostDate', label: 'Date to Post', type: 'date', showIf: { field: 'contentType', equals: 'Social Media' }, required: true },
     { key: 'cardholderName', label: 'Full Name (as printed on the card)', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
     { key: 'personRequesting', label: 'Person Requesting', type: 'text', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
@@ -382,7 +386,7 @@ const CATEGORIES = {
   ] },
   print: { label: 'Print', autoName: true, fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Primary Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Primary Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
     { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
       options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'], showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
@@ -398,7 +402,7 @@ const CATEGORIES = {
     note: 'Please submit BEO requests by Friday at 10am for the BEO package that goes out the following Monday at 3pm.',
     fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'contact', label: 'Contact', type: 'text', required: true },
     { key: 'eventName', label: 'Event Name', type: 'text', required: true },
@@ -420,7 +424,7 @@ const CATEGORIES = {
   general: { label: 'Other', fields: [
     { key: 'name', label: 'What do you need?', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'details', label: 'Describe your request or question', type: 'textarea', full: true, required: true },
@@ -764,7 +768,12 @@ CATEGORY_ORDER.forEach((key) => { const cfg = CATEGORIES[key];
   b.innerHTML = ICONS[CATEGORY_ICON[key]] + '<span class="c-name">' + cfg.label + '</span>';
   b.addEventListener('click', () => selectCategory(key)); catPicker.appendChild(b);
 });
-function selectCategory(key) { currentCat = key; catPicker.querySelectorAll('.cat-card').forEach(x => x.classList.toggle('active', x.dataset.cat === key)); renderForm(); }
+function selectCategory(key) {
+  currentCat = key;
+  document.getElementById('submission-success').hidden = true;
+  catPicker.querySelectorAll('.cat-card').forEach(x => x.classList.toggle('active', x.dataset.cat === key));
+  renderForm();
+}
 function fieldControl(f) {
   const req = f.required ? ' required' : '';
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
@@ -885,11 +894,22 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     const res = await callApi({ action: 'create-routed-request', category: currentCat, fields });
-    toast('Sent to ' + res.board + ' → ' + res.itemName + (res.filesAttached ? ' · ' + res.filesAttached + ' file(s) attached' : '') + (res.socialUrl ? ' · social post created' : '') + (res.emailSent ? ' · confirmation emailed' : ''));
-    delete pendingSubmissionIds[currentCat];
-    renderForm();
+    const partial = res.syncState === 'partial';
+    toast(partial
+      ? 'Request created. A connected handoff needs one retry.'
+      : 'Sent to ' + res.board + ' → ' + res.itemName + (res.filesAttached ? ' · ' + res.filesAttached + ' file(s) attached' : '') + (res.socialUrl ? ' · social post created' : '') + (res.emailSent ? ' · confirmation emailed' : ''), partial);
+    if (!partial) {
+      delete pendingSubmissionIds[currentCat];
+      renderForm();
+    }
+    const success = document.getElementById('submission-success');
+    success.hidden = false;
+    success.innerHTML = '<strong style="display:block;margin-bottom:6px">' + esc(partial ? 'Request saved — retry the connected handoff' : 'Request received') + '</strong>'
+      + '<span style="display:block;color:var(--muted);font-size:12.5px;margin-bottom:12px">' + esc(partial ? 'Your main request is safe. Submit the same form again; the Request ID prevents duplicates.' : 'Track progress here, or review launch impact in Launch Hub.') + '</span>'
+      + '<a class="btn secondary" href="' + esc(res.requestHubUrl || '/app?view=myrequests') + '">Track request</a> '
+      + '<a class="btn secondary" href="' + esc(res.launchHubUrl || 'https://launchcalendar.lemonadehospitality.com/app?view=requests') + '">Open Launch Hub</a>';
   } catch (err) { toast('Submit failed: ' + err.message, true); }
-  finally { const b = document.getElementById('submit-btn'); if (b) { b.disabled = false; b.textContent = 'Submit ' + cfg.label + ' Request'; } }
+  finally { const b = document.getElementById('submit-btn'); if (b) { b.disabled = false; b.textContent = pendingSubmissionIds[currentCat] ? 'Retry ' + cfg.label + ' Sync' : 'Submit ' + cfg.label + ' Request'; } }
 });
 
 // ---- Track ----

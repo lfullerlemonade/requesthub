@@ -1,0 +1,304 @@
+{
+  "contractName": "Lemonade Hospitality Request-to-Launch Integration Contract",
+  "schemaVersion": "1.0.0",
+  "effectiveDate": "2026-08-03",
+  "sourceOfTruth": "monday.com",
+  "principles": {
+    "requestHub": "captures demand",
+    "monday": "manages execution",
+    "launchHub": "shows launch impact",
+    "promotionRule": "A request is never a milestone automatically. Launch-related requests are triaged and linked to a task beneath an existing milestone."
+  },
+  "canonicalTaxonomies": {
+    "teams": [
+      "Sales",
+      "Front Office",
+      "Rooms",
+      "F&B",
+      "Pool & Beach",
+      "Engineering",
+      "Housekeeping",
+      "Marketing",
+      "Ownership",
+      "Brand"
+    ],
+    "outlets": [
+      "Campaigns",
+      "The Sunny",
+      "Julene",
+      "Citrus Shack",
+      "Lovebirds",
+      "Sandbar",
+      "Newport Room",
+      "Pool / Beach",
+      "Rooms / E-commerce"
+    ],
+    "outletAliases": {
+      "Julene (breakfast)": "Julene",
+      "Julene (bar)": "Julene"
+    },
+    "outletValuesRequiringTriage": [
+      "Misc."
+    ],
+    "workstreams": [
+      "Partnerships",
+      "Programming & Activations",
+      "Content Creation / Organic Social",
+      "PR",
+      "Paid Social / Media",
+      "Digital",
+      "Influencers",
+      "Campaign",
+      "Brand",
+      "Misc Procurement"
+    ],
+    "launchPriorities": [
+      "P0 - Blocker",
+      "P0 - Deadline",
+      "P0 - Launch",
+      "P1 - This Week",
+      "P1 - August",
+      "P1 - September",
+      "P2 - July",
+      "P3 - Post Launch"
+    ],
+    "launchImpactStates": [
+      "unreviewed",
+      "operational_only",
+      "launch_related"
+    ],
+    "normalizedStatuses": [
+      "new",
+      "planned",
+      "in_progress",
+      "waiting",
+      "blocked",
+      "complete",
+      "cancelled"
+    ],
+    "syncStates": [
+      "pending",
+      "synced",
+      "partial",
+      "error"
+    ]
+  },
+  "identity": {
+    "requestId": {
+      "required": true,
+      "immutable": true,
+      "description": "Globally unique ID for one Monday item created by or incorporated into the Request Hub workflow."
+    },
+    "requestFamilyId": {
+      "required": true,
+      "immutable": true,
+      "description": "Shared by the originating request and every generated Creative, Procurement, Print, Social, or milestone-task child."
+    },
+    "parentRequestId": {
+      "requiredForGeneratedChildren": true,
+      "nullableForFamilyRoot": true
+    },
+    "idFormat": "UUID or ULID",
+    "kpiRule": "Count one top-level request per requestFamilyId. Generated children do not increase request-volume KPIs."
+  },
+  "canonicalRequest": {
+    "requiredAtCreation": [
+      "requestId",
+      "requestFamilyId",
+      "sourceApp",
+      "sourceCategory",
+      "sourceBoardId",
+      "sourceItemId",
+      "title",
+      "requesterEmail",
+      "team",
+      "requestedCompletionDate",
+      "rawStatus",
+      "normalizedStatus",
+      "launchImpact",
+      "syncState",
+      "createdAt",
+      "updatedAt"
+    ],
+    "fields": {
+      "requestId": "string",
+      "requestFamilyId": "string",
+      "parentRequestId": "string|null",
+      "sourceApp": "request_hub|monday|manual_import",
+      "sourceCategory": "procurement|uniform|creative|print|beo|general|business_card|social",
+      "sourceBoardId": "string",
+      "sourceItemId": "string",
+      "sourceUrl": "https-url",
+      "title": "string",
+      "requesterName": "string|null",
+      "requesterEmail": "email",
+      "ccEmails": "email[]",
+      "team": "canonicalTaxonomies.teams",
+      "outlet": "canonicalTaxonomies.outlets|null",
+      "workstream": "canonicalTaxonomies.workstreams|null",
+      "ownerMondayUserId": "string|null",
+      "ownerDisplayName": "string|null",
+      "launchPriority": "canonicalTaxonomies.launchPriorities|null",
+      "launchImpact": "canonicalTaxonomies.launchImpactStates",
+      "requestedCompletionDate": "YYYY-MM-DD",
+      "liveOrOnPropertyDate": "YYYY-MM-DD|null",
+      "workBackDate": "YYYY-MM-DD|null",
+      "leadTimeDays": "non-negative-number|null",
+      "eventDate": "YYYY-MM-DD|null",
+      "rawStatus": "string",
+      "normalizedStatus": "canonicalTaxonomies.normalizedStatuses",
+      "milestoneBoardId": "string|null",
+      "milestoneItemId": "string|null",
+      "milestoneTaskItemId": "string|null",
+      "syncState": "canonicalTaxonomies.syncStates",
+      "syncErrorCode": "string|null",
+      "lastSyncedAt": "ISO-8601|null",
+      "createdAt": "ISO-8601",
+      "updatedAt": "ISO-8601"
+    }
+  },
+  "dateSemantics": {
+    "requestedCompletionDate": "When the requester wants the executing team to finish its work.",
+    "liveOrOnPropertyDate": "When the deliverable must be live, installed, delivered, or usable by guests or operators.",
+    "workBackDate": "The latest safe action date calculated from the live/on-property date and lead time.",
+    "eventDate": "The date an event occurs. It must not be silently treated as the production-completion deadline.",
+    "calculation": "workBackDate = liveOrOnPropertyDate - leadTimeDays",
+    "rules": [
+      "Never silently copy requestedCompletionDate into liveOrOnPropertyDate.",
+      "When a requester confirms both dates are the same, store both explicitly.",
+      "For Procurement, Due Date maps to requestedCompletionDate and Need on Property maps to liveOrOnPropertyDate.",
+      "For BEO, Event Date maps to eventDate and liveOrOnPropertyDate; operational preparation still needs its own requestedCompletionDate when applicable."
+    ]
+  },
+  "triage": {
+    "launchRelatedRequirements": [
+      "outlet",
+      "workstream",
+      "ownerMondayUserId",
+      "launchPriority",
+      "liveOrOnPropertyDate",
+      "milestoneItemId"
+    ],
+    "procurementRiskReadyRequirements": [
+      "outlet",
+      "ownerMondayUserId",
+      "liveOrOnPropertyDate",
+      "leadTimeDays",
+      "workBackDate"
+    ],
+    "promotionBehavior": {
+      "unreviewed": "Remain in the Requests queue and missing-information view.",
+      "operational_only": "Remain in the Requests queue and never appear on the milestone timeline.",
+      "launch_related": "Link to an existing milestone and create or link a task beneath that milestone."
+    }
+  },
+  "relationships": {
+    "allowedChildTypes": [
+      "procurement",
+      "print",
+      "social",
+      "creative",
+      "milestone_task"
+    ],
+    "rules": [
+      "Every generated child inherits requestFamilyId and stores parentRequestId.",
+      "The family root stores reciprocal links to all generated children.",
+      "A milestone task stores the originating request URL; the request stores milestoneItemId and milestoneTaskItemId.",
+      "Deleting a link does not delete either Monday item.",
+      "Retries must be idempotent by requestId plus child type."
+    ]
+  },
+  "statusNormalization": {
+    "procurement": {
+      "New Request": "new",
+      "Sourcing": "in_progress",
+      "Working On Design": "in_progress",
+      "Ready to Order": "waiting",
+      "Ordered": "in_progress",
+      "In Transit": "in_progress",
+      "Delivered": "complete"
+    },
+    "uniform": {
+      "New Request": "new",
+      "Sourcing": "in_progress",
+      "Ordered": "in_progress",
+      "In Transit": "in_progress",
+      "Delivered": "complete"
+    },
+    "creative": {
+      "New": "new",
+      "Assigned": "planned",
+      "Working On It": "in_progress",
+      "Pending Review": "waiting",
+      "Stuck": "blocked",
+      "Completed": "complete"
+    },
+    "print": {
+      "New": "new",
+      "In Progress": "in_progress",
+      "Printed": "complete"
+    },
+    "beo": {
+      "": "new",
+      "Working on it": "in_progress",
+      "Stuck": "blocked",
+      "Done": "complete"
+    },
+    "general": {
+      "New Request": "new",
+      "In Progress": "in_progress",
+      "In Review": "waiting",
+      "On Hold": "waiting",
+      "Completed": "complete",
+      "Cancelled": "cancelled"
+    },
+    "business_card_groups": {
+      "Incoming responses": "new",
+      "Complete": "complete"
+    },
+    "social": {
+      "Draft": "planned"
+    },
+    "unknownStatusBehavior": "Preserve rawStatus, set syncState to partial, and flag the record for mapping review."
+  },
+  "permissions": {
+    "dimensions": {
+      "requestVisibility": [
+        "own",
+        "all"
+      ],
+      "launchAccess": [
+        "none",
+        "view",
+        "edit"
+      ],
+      "canTriageRequests": "boolean",
+      "canManageIntegration": "boolean"
+    },
+    "rules": [
+      "Request Hub Requester defaults to requestVisibility=own.",
+      "Launch Hub View does not automatically grant visibility into all request details.",
+      "Triage and milestone linking require requestVisibility=all, launchAccess=edit, and canTriageRequests=true.",
+      "Access must be enforced server-side; hiding UI controls is not authorization."
+    ]
+  },
+  "currentBoards": {
+    "procurement": "18415967514",
+    "uniform": "18415985409",
+    "creative": "18421786819",
+    "print": "18421786829",
+    "beo": "18395449895",
+    "general": "18416054434",
+    "business_card": "18127686590",
+    "social": "18409075892",
+    "launch_hub_pilot": "18424230222",
+    "users": "18421837454"
+  },
+  "validation": {
+    "rejectUnknownCanonicalValues": true,
+    "preserveRawSourceValues": true,
+    "requireServerSideValidation": true,
+    "requireSchemaVersionOnWrites": true,
+    "requireIdempotencyOnGeneratedChildren": true
+  }
+}

@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 
 await fs.access(new URL('./api/monday.js', import.meta.url));
 const moduleUrl = new URL('./api/monday.js?creative-production-verify', import.meta.url);
@@ -165,4 +166,36 @@ assert.match(html, /Where will the photos or video be used\?/);
 assert.match(html, /request-table-shell/);
 assert.match(html, /data-showif-values/);
 
-console.log('Program mapping, Creative production intake, and request-table UI verification passed.');
+// Regression: a user with a valid legacy rh_session cookie can also have the
+// literal shared-auth marker in localStorage. The marker must not mask the
+// valid cookie and trigger a / -> /app -> signout refresh loop.
+process.env.AUTH_SECRET = 'legacy-loop-secret';
+process.env.APPROVED_EMAILS = 'legacy@example.com';
+const legacyPayload = `legacy@example.com|admin|${Date.now() + 3600000}`;
+const legacyB64 = Buffer.from(legacyPayload).toString('base64url');
+const legacySignature = crypto.createHmac('sha256', process.env.AUTH_SECRET).update(legacyB64).digest('hex');
+payload = null;
+res.statusCode = undefined;
+await handler({
+  method: 'POST',
+  headers: { cookie: `rh_session=${encodeURIComponent(`${legacyB64}.${legacySignature}`)}` },
+  body: { action: 'session', token: 'shared' }
+}, res);
+assert.equal(res.statusCode, 200);
+assert.equal(payload.ok, true);
+assert.equal(payload.email, 'legacy@example.com');
+
+const { default: signoutHandler } = await import(new URL('./api/signout.js?verify', import.meta.url));
+const signout = {
+  headers: {}, statusCode: 200, ended: false,
+  setHeader(name, value) { this.headers[name] = value; },
+  writeHead(statusCode, headers) { this.statusCode = statusCode; Object.assign(this.headers, headers); },
+  end() { this.ended = true; }
+};
+signoutHandler({}, signout);
+assert.equal(signout.statusCode, 302);
+assert.match(signout.headers['Set-Cookie'], /rh_session=.*Max-Age=0/);
+assert.match(signout.headers.Location, /launchcalendar\.lemonadehospitality\.com\/api\/signout/);
+assert.equal(signout.ended, true);
+
+console.log('Request creation, table UI, and legacy-session loop regression verification passed.');

@@ -909,7 +909,12 @@ async function authenticateRequest(req, suppliedToken) {
       }
     } catch (error) { /* legacy session remains available during transition */ }
   }
-  const legacy = verifyToken(suppliedToken || requestCookie(req, 'rh_session'));
+  // During the shared-auth migration the browser stores the literal value
+  // "shared" in localStorage. Older users can simultaneously have a valid
+  // rh_session cookie. Never let that non-token placeholder mask the valid
+  // cookie or the app will bounce between / and /app indefinitely.
+  let legacy = verifyToken(suppliedToken);
+  if (!legacy.valid) legacy = verifyToken(requestCookie(req, 'rh_session'));
   if (!legacy.valid) return { valid: false };
   if (!legacy.email) return { ...legacy, requestVisibility: legacy.role === 'admin' ? 'all' : 'own' };
   const permissions = await getUserPermissions(legacy.email);

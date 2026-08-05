@@ -56,6 +56,7 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
+    fileColumn: 'file_mm3ygsy5',        // supporting documents land in Monday's Attachments / Files area
     tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'numeric_mm5r88qe', 'dropdown_mm5yhppt', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
@@ -1116,7 +1117,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
     launchHubUrl: CONTRACT.urls.launch + '/app?view=requests&q=' + encodeURIComponent(item.name || ''),
   };
 
-  // Attach uploaded reference files (best-effort; currently Creative only).
+  // Attach uploaded files to the category's configured Monday Files column.
   if (!wasExisting && cfg.fileColumn && Array.isArray(f.files) && f.files.length) {
     const up = await uploadFilesToItem(item.id, cfg.fileColumn, f.files);
     result.filesAttached = up.filter((r) => r.ok).length;

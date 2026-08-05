@@ -90,6 +90,12 @@ const res = {
   end() {}
 };
 
+await handler({ method: 'POST', headers: {}, body: { action: 'list-programs' } }, res);
+assert.equal(res.statusCode, 200);
+assert.deepEqual(payload.programs.map((program) => program.title), ['Dog Program', 'Internal readiness checkpoint']);
+payload = null;
+res.statusCode = undefined;
+
 await handler(req, res);
 assert.equal(res.statusCode, 200);
 assert.equal(payload.requestId, requestId);
@@ -224,7 +230,7 @@ assert.match(html, /Start typing an opening or program/);
 assert.match(html, /programResultsHtml/);
 assert.match(html, /role="listbox"/);
 assert.match(html, /data-program-id/);
-assert.match(html, /Available in Request Hub/);
+assert.match(html, /Every item marked Milestone/);
 assert.doesNotMatch(html, /Program \/ Initiative \(if applicable\)/);
 
 // Regression: a user with a valid legacy rh_session cookie can also have the

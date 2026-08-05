@@ -725,19 +725,27 @@ function normalizedPerson(value) {
 }
 
 async function listProcurementOwners() {
-  if (procurementOwnerCache.items && Date.now() - procurementOwnerCache.at < 5 * 60 * 1000) {
+  if (procurementOwnerCache.items && procurementOwnerCache.items.length && Date.now() - procurementOwnerCache.at < 5 * 60 * 1000) {
     return procurementOwnerCache.items;
   }
   const data = await mondayQuery(
-    `query ($board: [ID!], $cols: [String!]) {
-      boards(ids: $board) {
+    `query ($accessBoard: [ID!], $procurementBoard: [ID!], $cols: [String!]) {
+      accessBoard: boards(ids: $accessBoard) {
         items_page(limit: 500) { items { name column_values(ids: $cols) { id text } } }
+      }
+      procurementBoard: boards(ids: $procurementBoard) {
+        subscribers { id name email status is_deleted }
+        owners { id name email status is_deleted }
       }
       users(limit: 500) { id name email status is_deleted }
     }`,
-    { board: [String(USERS_BOARD)], cols: [USERS_EMAIL_COL] }
+    {
+      accessBoard: [String(USERS_BOARD)],
+      procurementBoard: [String(BOARDS.procurement.boardId)],
+      cols: [USERS_EMAIL_COL]
+    }
   );
-  const accessItems = (((data || {}).boards || [])[0] || {}).items_page;
+  const accessItems = (((data || {}).accessBoard || [])[0] || {}).items_page;
   const allowedEmails = new Set();
   const allowedNames = new Set();
   for (const item of (accessItems && accessItems.items) || []) {
@@ -746,12 +754,19 @@ async function listProcurementOwners() {
     const email = String((emailColumn && emailColumn.text) || '').trim().toLowerCase();
     if (email) allowedEmails.add(email);
   }
-  const owners = (data.users || []).filter((user) => {
+  const procurementBoard = (((data || {}).procurementBoard || [])[0] || {});
+  const boardPeople = [...(procurementBoard.subscribers || []), ...(procurementBoard.owners || [])];
+  const boardPersonIds = new Set(boardPeople.map((user) => String(user.id)));
+  const candidates = new Map();
+  for (const user of [...(data.users || []), ...boardPeople]) candidates.set(String(user.id), user);
+  const owners = [...candidates.values()].filter((user) => {
     if (user.status !== 'ACTIVE' || user.is_deleted || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
-    return allowedEmails.has(String(user.email || '').trim().toLowerCase()) || allowedNames.has(normalizedPerson(user.name));
+    return boardPersonIds.has(String(user.id))
+      || allowedEmails.has(String(user.email || '').trim().toLowerCase())
+      || allowedNames.has(normalizedPerson(user.name));
   }).map((user) => ({ id: String(user.id), name: String(user.name || user.email), email: String(user.email || '') }))
     .sort((left, right) => left.name.localeCompare(right.name));
-  procurementOwnerCache = { at: Date.now(), items: owners };
+  if (owners.length) procurementOwnerCache = { at: Date.now(), items: owners };
   return owners;
 }
 

@@ -188,7 +188,7 @@ await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'procurement', fields: {
       name: 'Lobby planters', team: 'Guest Services', requesterEmail: 'tester@example.com',
-      dueDate: '2026-08-25', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00',
+      dueDate: '2026-08-25', outlet: 'Porte Cochere', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00',
       files: [{ name: 'vendor-quote.pdf', type: 'application/pdf', data: Buffer.from('quote').toString('base64') }]
     }
   }
@@ -200,6 +200,7 @@ assert.ok(procurementCreate, 'Procurement request should create a Procurement it
 const procurementColumns = JSON.parse(procurementCreate.variables.columnValues);
 assert.equal(procurementColumns.numeric_mm5r88qe, '3750.00');
 assert.deepEqual(procurementColumns.dropdown_mm5yhppt, { labels: ['Planning Allowance'] });
+assert.deepEqual(procurementColumns.dropdown_mm5rm01q, { labels: ['Porte Cochere'] });
 assert.equal(payload.filesAttached, 1);
 assert.ok(calls.slice(procurementCallStart).some((call) => call.fileUpload), 'Procurement document should upload to Monday');
 
@@ -230,6 +231,7 @@ assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
 assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/);
 assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
 assert.match(html, /Supporting Documents \(optional\)/);
+assert.match(html, /'Porte Cochere'/);
 assert.match(html, /What opening or program does this support\?/);
 assert.match(html, /Start typing an opening or program/);
 assert.match(html, /programResultsHtml/);

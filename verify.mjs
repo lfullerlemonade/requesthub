@@ -54,7 +54,6 @@ const req = {
       requestFamilyId: requestId,
       contentType: 'Social Media',
       name: 'Phase 2 verification',
-      requesterName: 'Taylor Tester',
       team: 'Guest Services',
       outlet: 'Lobby',
       email: 'tester@example.com',
@@ -99,7 +98,6 @@ const social = byBoard['18409075892'];
 
 assert.equal(root.text_mm5wqsp4, requestId);
 assert.equal(root.text_mm5wfmqh, requestId);
-assert.equal(root.text_mm5yz238, 'Taylor Tester');
 assert.equal(procurement.text_mm5w38ba, requestId);
 assert.equal(procurement.text_mm5wtk63, requestId);
 assert.equal(social.text_mm5wqjed, requestId);
@@ -168,8 +166,8 @@ const html = await fs.readFile(new URL('./public/app.html', import.meta.url), 'u
 assert.match(html, /Where will the photos or video be used\?/);
 assert.match(html, /request-table-shell/);
 assert.match(html, /data-showif-values/);
-assert.match(html, /Filter by requester name or email/);
-assert.match(html, /name="requesterName"/);
+assert.match(html, /Filter by requester email/);
+assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
 
 // Regression: a user with a valid legacy rh_session cookie can also have the
 // literal shared-auth marker in localStorage. The marker must not mask the

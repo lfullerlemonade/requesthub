@@ -363,7 +363,12 @@ const CATEGORIES = {
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
-    { key: 'budget', label: 'Budget', type: 'text' },
+    { key: 'estimateBasis', label: 'Estimate Basis', type: 'select', required: true,
+      options: ['Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed'],
+      hint: 'Choose the best description of the amount. Use Estimate Needed only when no credible planning amount is available.' },
+    { key: 'workingCostEstimate', label: 'Working Cost Estimate', type: 'currency', required: true, min: '0.01',
+      showIf: { field: 'estimateBasis', oneOf: ['Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance'] },
+      hint: 'Enter the best current total in USD. An approved budget is not required; use a reasonable planning allowance when necessary. Do not enter $0.' },
     { key: 'dueDate', label: 'Requested Completion Date', type: 'date', required: true },
     { key: 'liveOrOnPropertyDate', label: 'Live / On Property Date (if different)', type: 'date' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
@@ -476,7 +481,7 @@ const CATEGORIES = {
 };
 
 const COLUMN_LABELS = {
-  color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
+  color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', numeric_mm5r88qe: 'Working Cost Estimate', dropdown_mm5yhppt: 'Estimate Basis', date_mm3yn5hj: 'Due Date',
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', dropdown_mm57xa91: 'Team', email_mm57fky2: 'Requested By', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
   color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', dropdown_mm575bmp: 'Team', email_mm57jmf2: 'Requester Email', date_mm57j8b: 'Ideal Due Date',
   color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57k4ha: 'Team', email_mm57r2z6: 'Requested By', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
@@ -828,7 +833,7 @@ function fieldControl(f) {
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
   if (f.type === 'multiselect') return '<div class="choice-grid">' + f.options.map(o =>
     '<label class="check"><input type="checkbox" name="'+f.key+'" value="'+esc(o)+'" /> <span>'+esc(o)+'</span></label>').join('') + '</div>';
-  if (f.type === 'currency') return '<div class="money-input"><input type="number" name="'+f.key+'" min="0" step="0.01" inputmode="decimal"'+req+' /></div>';
+  if (f.type === 'currency') return '<div class="money-input"><input type="number" name="'+f.key+'" min="'+esc(f.min || '0')+'" step="0.01" inputmode="decimal"'+req+' /></div>';
   if (f.type === 'outletqty') return '<div class="outletqty">' + f.options.map(o =>
     '<div class="oq-row"><label class="check oq-name"><input type="checkbox" data-oq-check="'+esc(o)+'" /> '+esc(o)+'</label>'
     + '<input type="number" min="1" step="1" inputmode="numeric" data-oq-qty="'+esc(o)+'" placeholder="Qty" class="oq-qty" /></div>').join('') + '</div>';

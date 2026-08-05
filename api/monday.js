@@ -733,7 +733,7 @@ async function listProcurementOwners() {
       boards(ids: $board) {
         items_page(limit: 500) { items { name column_values(ids: $cols) { id text } } }
       }
-      users(limit: 500) { id name email enabled }
+      users(limit: 500) { id name email status is_deleted }
     }`,
     { board: [String(USERS_BOARD)], cols: [USERS_EMAIL_COL] }
   );
@@ -747,7 +747,7 @@ async function listProcurementOwners() {
     if (email) allowedEmails.add(email);
   }
   const owners = (data.users || []).filter((user) => {
-    if (user.enabled === false || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
+    if (user.status !== 'ACTIVE' || user.is_deleted || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
     return allowedEmails.has(String(user.email || '').trim().toLowerCase()) || allowedNames.has(normalizedPerson(user.name));
   }).map((user) => ({ id: String(user.id), name: String(user.name || user.email), email: String(user.email || '') }))
     .sort((left, right) => left.name.localeCompare(right.name));

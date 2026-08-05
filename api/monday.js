@@ -108,14 +108,16 @@ const BOARDS = {
     defaultStatus: 'New',
     emailColumn: 'email_mm57jmf2',
     emailFieldKey: 'email',
+    requesterNameColumn: 'text_mm5yz238',
     dateColumn: 'date_mm57j8b',
     teamColumn: 'dropdown_mm575bmp',
     fileColumn: 'file_mm57s5z7', // uploaded reference files land here
-    tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'dropdown_mm575bmp', 'email_mm57jmf2', 'date_mm57j8b'],
+    tableColumns: ['color_mm57d4mj', 'dropdown_mm57r0h9', 'dropdown_mm575bmp', 'text_mm5yz238', 'email_mm57jmf2', 'date_mm57j8b'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'contentType', column: 'dropdown_mm57r0h9', kind: 'dropdown' },
       { key: 'departmentOutlet', column: 'text_mm57mzz2', kind: 'text' },
+      { key: 'requesterName', column: 'text_mm5yz238', kind: 'text' },
       { key: 'email', column: 'email_mm57jmf2', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm57x2pd', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm575bmp', kind: 'dropdown' },
@@ -1521,11 +1523,31 @@ async function topRequesters({ role, email, days = 7, top = 3 } = {}) {
   return { ok: true, requesters, days };
 }
 
-async function listBoardItems({ category, search, status, cursor, limit = 25, role, email }) {
+function normalizeRequesterSearch(value) {
+  return String(value || '').toLowerCase().normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function requesterMatches(query, requesterName, requesterEmail) {
+  const needle = normalizeRequesterSearch(query);
+  if (!needle) return true;
+  const emailText = String(requesterEmail || '');
+  const localPart = emailText.split('@')[0] || '';
+  const haystack = normalizeRequesterSearch(`${requesterName || ''} ${emailText} ${localPart}`);
+  return needle.split(/\s+/).every((token) => haystack.includes(token));
+}
+
+async function listBoardItems({ category, search, requester, status, cursor, limit = 25, role, email }) {
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
   const emailFilter = role === 'requester' ? String(email || '').trim().toLowerCase() : null;
-  const cols = Array.from(new Set([cfg.statusColumn, ...cfg.tableColumns, ...(emailFilter ? [cfg.emailColumn] : [])]));
+  const requesterFilter = String(requester || '').trim();
+  const cols = Array.from(new Set([
+    cfg.statusColumn, ...cfg.tableColumns,
+    ...(emailFilter ? [cfg.emailColumn] : []),
+    ...(cfg.requesterNameColumn ? [cfg.requesterNameColumn] : []),
+  ]));
+  const queryLimit = requesterFilter ? 500 : limit;
 
   const rules = [];
   if (search && search.trim()) {
@@ -1547,7 +1569,7 @@ async function listBoardItems({ category, search, status, cursor, limit = 25, ro
           items { id name created_at column_values (ids: $cols) { id text } }
         }
       }`;
-    const data = await mondayQuery(query, { cursor, cols, limit });
+    const data = await mondayQuery(query, { cursor, cols, limit: queryLimit });
     page = data.next_items_page;
   } else {
     const queryParams = rules.length ? { rules, operator: 'and' } : null;
@@ -1560,8 +1582,30 @@ async function listBoardItems({ category, search, status, cursor, limit = 25, ro
           }
         }
       }`;
-    const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, limit, qp: queryParams });
+    const data = await mondayQuery(query, { boardId: String(cfg.boardId), cols, limit: queryLimit, qp: queryParams });
     page = data.boards[0].items_page;
+  }
+
+  // Requester filtering searches both name and email. Monday cannot express
+  // (requester name OR requester email) alongside the other AND rules, so
+  // collect the filtered cursor pages and apply that final predicate below.
+  if (requesterFilter && !cursor) {
+    const allItems = [...(page.items || [])];
+    let nextCursor = page.cursor;
+    while (nextCursor) {
+      const next = await mondayQuery(
+        `query ($cursor: String!, $cols: [String!], $limit: Int!) {
+          next_items_page (cursor: $cursor, limit: $limit) {
+            cursor items { id name created_at column_values (ids: $cols) { id text } }
+          }
+        }`,
+        { cursor: nextCursor, cols, limit: 500 }
+      );
+      const nextPage = next.next_items_page;
+      allItems.push(...(nextPage.items || []));
+      nextCursor = nextPage.cursor;
+    }
+    page = { items: allItems, cursor: null };
   }
 
   let items = page.items.map((it) => {
@@ -1578,6 +1622,13 @@ async function listBoardItems({ category, search, status, cursor, limit = 25, ro
   });
   // Exact-match safeguard so a requester never sees a near-miss email's items.
   if (emailFilter) items = items.filter((it) => (it.columns[cfg.emailColumn] || '').trim().toLowerCase() === emailFilter);
+  if (requesterFilter) {
+    items = items.filter((it) => requesterMatches(
+      requesterFilter,
+      cfg.requesterNameColumn ? it.columns[cfg.requesterNameColumn] : '',
+      it.columns[cfg.emailColumn]
+    ));
+  }
 
   return {
     ok: true,
@@ -1695,6 +1746,7 @@ export default async function handler(req, res) {
         result = await listBoardItems({
           category: params.category,
           search: params.search,
+          requester: params.requester,
           status: params.status,
           cursor: params.cursor,
           limit: params.limit ? Number(params.limit) : 25,

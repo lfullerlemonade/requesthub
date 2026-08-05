@@ -56,14 +56,16 @@ const BOARDS = {
     emailFieldKey: 'requesterEmail',
     dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
-    tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'date_mm3yn5hj'],
+    tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'numeric_mm5r88qe', 'dropdown_mm5yhppt', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
       { key: 'itemDescription', column: 'text_mm3y2353', kind: 'text' },
       { key: 'quantity', column: 'numeric_mm3yee8z', kind: 'numbers' },
       { key: 'vendor', column: 'text_mm3yng56', kind: 'text' },
-      { key: 'budget', column: 'text_mm3ypbsb', kind: 'text' },               // Budget is a TEXT column on this board
+      { key: 'budget', column: 'text_mm3ypbsb', kind: 'text' },               // Legacy/backward-compatible budget field
+      { key: 'workingCostEstimate', column: 'numeric_mm5r88qe', kind: 'numbers' },
+      { key: 'estimateBasis', column: 'dropdown_mm5yhppt', kind: 'dropdown' },
       { key: 'dueDate', column: 'date_mm3yn5hj', kind: 'date' },
       { key: 'requesterEmail', column: 'email_mm57tjxr', kind: 'email' },
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
@@ -286,7 +288,8 @@ const REQUESTED_DATE_FIELD = {
 
 const EMAIL_LABELS = {
   name: 'Request', department: 'Department', itemDescription: 'Item / what’s needed',
-  quantity: 'Quantity', vendor: 'Vendor', budget: 'Budget', dueDate: 'Due date', notes: 'Notes',
+  quantity: 'Quantity', vendor: 'Vendor', budget: 'Budget', workingCostEstimate: 'Working cost estimate',
+  estimateBasis: 'Estimate basis', dueDate: 'Due date', notes: 'Notes',
   uniformType: 'Uniform type', departmentRole: 'Department / role',
   requirements: 'Specific requirements', sizeRequirements: 'Size requirements',
   contentType: 'Content type', departmentOutlet: 'Department / outlet',
@@ -505,6 +508,23 @@ function validateCreationFields(category, fields) {
   if (productionType) {
     const budget = Number(fields.estimatedBudget);
     if (!Number.isFinite(budget) || budget < 0) throw badRequest('Estimated budget must be a valid non-negative amount.');
+  }
+  if (category === 'procurement') {
+    const allowedBases = ['Approved Budget', 'Vendor Quote', 'Internal Estimate', 'Planning Allowance', 'Estimate Needed'];
+    const basis = String(fields.estimateBasis || '').trim();
+    if (!allowedBases.includes(basis)) throw badRequest('Choose how the procurement cost was estimated.');
+    const rawEstimate = fields.workingCostEstimate;
+    if (basis === 'Estimate Needed') {
+      if (rawEstimate !== undefined && rawEstimate !== null && String(rawEstimate).trim() !== '') {
+        throw badRequest('Choose an estimate basis that matches the amount entered, or clear the amount when an estimate is still needed.');
+      }
+    } else {
+      if (rawEstimate === undefined || rawEstimate === null || String(rawEstimate).trim() === '') {
+        throw badRequest('Enter a working cost estimate, or choose Estimate Needed.');
+      }
+      const estimate = Number(rawEstimate);
+      if (!Number.isFinite(estimate) || estimate <= 0) throw badRequest('Working cost estimate must be a valid amount greater than $0.');
+    }
   }
 }
 

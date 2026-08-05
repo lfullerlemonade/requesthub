@@ -127,6 +127,13 @@
   .field-hint { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.5; margin: -2px 0 8px; }
   .program-picker { display: grid; gap: 8px; }
   .program-picker .program-search { padding-left: 36px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23697774' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E") no-repeat 12px center; }
+  .program-results { max-height: 290px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(9,46,54,.12); padding: 6px; }
+  .program-results[hidden] { display: none; }
+  .program-result-group { padding: 8px 10px 4px; color: var(--muted); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .program-result { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-radius: 8px; padding: 10px; background: transparent; color: var(--seaweed); font: inherit; text-align: left; cursor: pointer; }
+  .program-result:hover, .program-result:focus { outline: none; background: var(--foam-2); }
+  .program-result small { flex: none; color: var(--muted); font-size: 11px; }
+  .program-no-results { padding: 12px 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
   .program-picker-note { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
   .check { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; user-select: none; background: #fff; }
@@ -832,8 +839,10 @@ function fieldControl(f) {
   const req = f.required ? ' required' : '';
   if (f.type === 'program') {
     const disabled = PROGRAMS_LOADED ? '' : ' disabled';
-    return '<div class="program-picker"><input type="search" class="program-search" placeholder="Search openings and programs…" aria-label="Search openings and programs"'+disabled+' />'
-      + '<select name="'+f.key+'"'+req+disabled+'>'+programOptionsHtml(PROGRAMS)+'</select>'
+    const resultsId = 'program-results-'+f.key;
+    return '<div class="program-picker"><input type="search" class="program-search" placeholder="Start typing an opening or program…" aria-label="Search openings and programs" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="'+resultsId+'" autocomplete="off"'+disabled+' />'
+      + '<input type="hidden" name="'+f.key+'" value="" />'
+      + '<div class="program-results" id="'+resultsId+'" role="listbox" hidden></div>'
       + '<span class="program-picker-note">Optional. Only approved openings and programs from the Launch board are shown.</span></div>';
   }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
@@ -856,33 +865,51 @@ function formatProgramDate(value) {
   const date = new Date(value + 'T12:00:00');
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
-function programOptionsHtml(programs, selected) {
-  const label = PROGRAMS_LOADED ? '— Not connected to an opening or program —' : '— Loading openings and programs… —';
+function programResultsHtml(programs) {
+  if (!programs.length) return '<div class="program-no-results">No approved opening or program matches that search. If this should be available, check “Available in Request Hub” on its milestone in Monday.</div>';
   const groups = new Map();
   programs.forEach(program => {
     const group = program.groupTitle || 'Other';
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(program);
   });
-  let html = '<option value="">'+label+'</option>';
+  let html = '';
   groups.forEach((items, group) => {
-    html += '<optgroup label="'+esc(group)+'">' + items.map(program =>
-      '<option value="'+esc(program.id)+'"'+(String(program.id) === String(selected || '') ? ' selected' : '')+'>'+esc(programOptionLabel(program))+'</option>'
-    ).join('') + '</optgroup>';
+    html += '<div class="program-result-group">'+esc(group)+'</div>' + items.map(program => {
+      const date = program.timelineEnd || program.liveDate || program.dueDate || '';
+      return '<button type="button" class="program-result" role="option" data-program-id="'+esc(program.id)+'"><span>'+esc(program.title)+'</span>'
+        + (date ? '<small>'+esc(formatProgramDate(date))+'</small>' : '')+'</button>';
+    }).join('');
   });
   return html;
 }
 function bindProgramPickers(form) {
   form.querySelectorAll('.program-picker').forEach(picker => {
     const search = picker.querySelector('.program-search');
-    const select = picker.querySelector('select[name]');
-    if (!search || !select) return;
-    search.addEventListener('input', () => {
-      const selected = select.value;
+    const valueInput = picker.querySelector('input[type="hidden"][name]');
+    const results = picker.querySelector('.program-results');
+    if (!search || !valueInput || !results) return;
+    const showResults = () => {
       const query = search.value.trim().toLowerCase();
       const filtered = !query ? PROGRAMS : PROGRAMS.filter(program =>
         [program.title, program.groupTitle, program.role].some(value => String(value || '').toLowerCase().includes(query)));
-      select.innerHTML = programOptionsHtml(filtered, selected);
+      results.innerHTML = programResultsHtml(filtered);
+      results.hidden = false;
+      search.setAttribute('aria-expanded', 'true');
+    };
+    const hideResults = () => { results.hidden = true; search.setAttribute('aria-expanded', 'false'); };
+    search.addEventListener('focus', showResults);
+    search.addEventListener('input', () => { valueInput.value = ''; showResults(); });
+    search.addEventListener('keydown', event => { if (event.key === 'Escape') hideResults(); });
+    search.addEventListener('blur', () => setTimeout(hideResults, 160));
+    results.addEventListener('click', event => {
+      const button = event.target.closest('[data-program-id]');
+      if (!button) return;
+      const program = PROGRAMS.find(item => item.id === String(button.dataset.programId));
+      if (!program) return;
+      valueInput.value = program.id;
+      search.value = programOptionLabel(program);
+      hideResults();
     });
   });
 }

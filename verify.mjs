@@ -220,9 +220,11 @@ assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/)
 assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
 assert.match(html, /Supporting Documents \(optional\)/);
 assert.match(html, /What opening or program does this support\?/);
-assert.match(html, /Search openings and programs/);
-assert.match(html, /programOptionsHtml/);
-assert.match(html, /optgroup/);
+assert.match(html, /Start typing an opening or program/);
+assert.match(html, /programResultsHtml/);
+assert.match(html, /role="listbox"/);
+assert.match(html, /data-program-id/);
+assert.match(html, /Available in Request Hub/);
 assert.doesNotMatch(html, /Program \/ Initiative \(if applicable\)/);
 
 // Regression: a user with a valid legacy rh_session cookie can also have the

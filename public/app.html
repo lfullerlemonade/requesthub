@@ -279,7 +279,7 @@
         <p class="welcome-sub">Search, filter, and review submitted requests</p>
         <div class="table-controls table-toolbar">
           <input type="search" id="track-search" placeholder="Search request name…" />
-          <input type="search" id="track-requester" placeholder="Filter by requester name or email…" />
+          <input type="search" id="track-requester" placeholder="Filter by requester email…" />
           <select id="track-status"><option value="">All statuses</option></select>
           <button class="btn secondary" id="track-refresh">Refresh</button>
         </div>
@@ -410,7 +410,6 @@ const CATEGORIES = {
     { key: 'directPhone', label: 'Direct Phone Number', type: 'tel', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
     { key: 'mobilePhone', label: 'Mobile Phone Number (optional)', type: 'tel', showIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'requestedCompletionDate', label: 'Requested Completion Date', type: 'date', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
-    { key: 'requesterName', label: 'Your Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates", hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
@@ -479,7 +478,7 @@ const CATEGORIES = {
 const COLUMN_LABELS = {
   color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', date_mm3yn5hj: 'Due Date',
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', dropdown_mm57xa91: 'Team', email_mm57fky2: 'Requested By', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
-  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', dropdown_mm575bmp: 'Team', text_mm5yz238: 'Requester Name', email_mm57jmf2: 'Requester Email', date_mm57j8b: 'Ideal Due Date',
+  color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', dropdown_mm575bmp: 'Team', email_mm57jmf2: 'Requester Email', date_mm57j8b: 'Ideal Due Date',
   color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57k4ha: 'Team', email_mm57r2z6: 'Requested By', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',
   color_mm09fjad: 'Status', dropdown_mm58q4be: 'Team', email_mm58rj16: 'Requested By', date_mm58gm0p: 'Event Date', multi_selectoxjp1hu4: 'Type of Event', short_textimp5o09l: 'Guest Count', short_textgjvu15x0: 'Location',
   color_mm3ztet1: 'Status', dropdown_mm58xgxs: 'Team', email_mm58xcf0: 'Requested By', date_mm3z4zk3: 'Due Date',
@@ -876,8 +875,6 @@ function renderForm() {
       inp.title = 'Signed in as ' + getEmail();
     }
   });
-  const requesterName = form.querySelector('input[name="requesterName"]');
-  if (requesterName && !requesterName.value) requesterName.value = prettyName(getEmail());
   form.querySelectorAll('select[name]').forEach(sel => sel.addEventListener('change', applyConditions));
   applyConditions();
 }

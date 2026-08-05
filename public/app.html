@@ -894,7 +894,8 @@ function fieldControl(f) {
   }
   if (f.type === 'owner') {
     const disabled = PROCUREMENT_OWNERS_LOADED ? '' : ' disabled';
-    return '<select name="'+f.key+'"'+req+disabled+'><option value="">— Select owner —</option>'
+    const emptyLabel = PROCUREMENT_OWNERS_LOADED && !PROCUREMENT_OWNERS.length ? 'No owners available — refresh the page' : '— Select owner —';
+    return '<select name="'+f.key+'"'+req+disabled+'><option value="">'+esc(emptyLabel)+'</option>'
       + PROCUREMENT_OWNERS.map(owner => '<option value="'+esc(owner.id)+'">'+esc(owner.name)+(owner.email ? ' — '+esc(owner.email) : '')+'</option>').join('')
       + '</select>';
   }

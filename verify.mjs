@@ -162,12 +162,46 @@ assert.deepEqual(photoColumns.dropdown_mm5ww6cx, { labels: ['Website', 'Organic 
 assert.equal(photoColumns.text_mm5wnab3, 'Sunny Studio');
 assert.equal(photoColumns.numeric_mm5wrdh9, '12500.50');
 
+const procurementCallStart = calls.length;
+payload = null;
+res.statusCode = undefined;
+await handler({
+  method: 'POST', headers: {}, body: {
+    action: 'create-routed-request', category: 'procurement', fields: {
+      name: 'Lobby planters', team: 'Guest Services', requesterEmail: 'tester@example.com',
+      dueDate: '2026-08-25', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00'
+    }
+  }
+}, res);
+assert.equal(res.statusCode, 200);
+const procurementCreate = calls.slice(procurementCallStart).find((call) =>
+  call.query.includes('create_item') && String(call.variables.boardId) === '18415967514');
+assert.ok(procurementCreate, 'Procurement request should create a Procurement item');
+const procurementColumns = JSON.parse(procurementCreate.variables.columnValues);
+assert.equal(procurementColumns.numeric_mm5r88qe, '3750.00');
+assert.deepEqual(procurementColumns.dropdown_mm5yhppt, { labels: ['Planning Allowance'] });
+
+payload = null;
+res.statusCode = undefined;
+await handler({
+  method: 'POST', headers: {}, body: {
+    action: 'create-routed-request', category: 'procurement', fields: {
+      name: 'Missing estimate', team: 'Guest Services', requesterEmail: 'tester@example.com',
+      dueDate: '2026-08-25', estimateBasis: 'Internal Estimate'
+    }
+  }
+}, res);
+assert.equal(res.statusCode, 400);
+assert.match(payload.error, /working cost estimate/i);
+
 const html = await fs.readFile(new URL('./public/app.html', import.meta.url), 'utf8');
 assert.match(html, /Where will the photos or video be used\?/);
 assert.match(html, /request-table-shell/);
 assert.match(html, /data-showif-values/);
 assert.match(html, /Filter by requester email/);
 assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
+assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/);
+assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
 
 // Regression: a user with a valid legacy rh_session cookie can also have the
 // literal shared-auth marker in localStorage. The marker must not mask the

@@ -376,6 +376,8 @@ const CATEGORIES = {
     { key: 'liveOrOnPropertyDate', label: 'Live / On Property Date (if different)', type: 'date' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
+    { key: 'files', label: 'Supporting Documents (optional)', type: 'file', full: true,
+      hint: 'Upload quotes, proposals, specifications, order forms, or other supporting documents. Files will appear on the Monday item. Maximum 3 MB total.' },
     { key: 'notes', label: 'Notes', type: 'textarea', full: true },
   ] },
   uniform: { label: 'Uniform', fields: [
@@ -1011,7 +1013,7 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
     const input = fwrap ? fwrap.querySelector('input[type=file]') : null;
     const chosen = input && input.files ? Array.from(input.files) : [];
     let sum = 0; chosen.forEach((f) => { sum += f.size; });
-    if (sum > 3 * 1024 * 1024) { toast('Attached files total too much (~3 MB max). Use the Reference Links field for large files.', true); return; }
+    if (sum > 3 * 1024 * 1024) { toast('Attached files exceed the 3 MB total limit. For larger files, add a share link in the Notes field.', true); return; }
     if (chosen.length) { btn.disabled = true; btn.textContent = 'Uploading…'; fields.files = await Promise.all(chosen.map(readFileB64)); }
   }
 

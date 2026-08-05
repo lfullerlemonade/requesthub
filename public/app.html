@@ -155,6 +155,9 @@
   .btn.secondary:hover { background: var(--foam-2); opacity: 1; }
 
   .table-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .track-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; margin-bottom: 24px; }
+  .track-heading .welcome-sub { margin-bottom: 0; }
+  .track-submit::before { content: '+'; margin-right: 8px; font-size: 17px; font-weight: 400; line-height: 0; }
   .table-toolbar { background: rgba(255,255,255,.82); border: 1px solid var(--line); border-radius: 13px; padding: 10px;
     box-shadow: 0 8px 24px rgba(9,46,54,.05); backdrop-filter: blur(8px); }
   .table-controls input[type=search], .table-controls select { padding: 10px 13px; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; background: #fff; font-family: inherit; color: var(--seaweed); }
@@ -164,7 +167,11 @@
   .request-table-shell { position: relative; background: var(--white); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--lift); }
   .request-table-shell::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, var(--yellow) 0 22%, var(--seaweed) 22% 100%); }
   .request-table-scroll { overflow-x: auto; }
-  .request-table-shell table { min-width: 860px; }
+  .request-table-shell table { min-width: 780px; table-layout: fixed; }
+  .request-table-shell .col-request { width: 29%; }
+  .request-table-shell .col-status { width: 155px; }
+  .request-table-shell .col-details { width: auto; }
+  .request-table-shell .col-due { width: 132px; }
   table { width: 100%; border-collapse: collapse; }
   thead th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--seaweed-70); padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 700; background: #eef2ef; white-space: nowrap; }
   tbody tr { background: var(--white); transition: background .14s ease, box-shadow .14s ease; }
@@ -174,6 +181,13 @@
   tbody tr:hover { background: #fffaf0; box-shadow: inset 4px 0 0 var(--yellow); }
   tbody td a { color: var(--seaweed); text-decoration: none; font-weight: 600; }
   tbody td a:hover { color: var(--ocean); text-decoration: none; }
+  .request-name { display: inline; font-size: 14px; line-height: 1.45; }
+  .request-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(84px, 1fr)); gap: 10px 16px; }
+  .request-detail { min-width: 0; }
+  .request-detail-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 9.5px; font-weight: 700; letter-spacing: .055em; line-height: 1.25; text-transform: uppercase; }
+  .request-detail-value { display: block; overflow: hidden; color: var(--seaweed); font-size: 12.5px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+  .request-detail-empty { color: var(--muted); font-size: 12px; }
+  .request-due { color: var(--seaweed); font-size: 12.5px; font-weight: 500; white-space: nowrap; }
   .request-table-shell tbody td:first-child a::after { content: '↗'; display: inline-block; margin-left: 7px; color: var(--muted); opacity: 0; transform: translate(-3px, 2px); transition: opacity .14s ease, transform .14s ease; }
   .request-table-shell tbody tr:hover td:first-child a::after { opacity: 1; transform: translate(0, 0); }
   .load-more-wrap { padding: 16px; text-align: center; }
@@ -191,6 +205,23 @@
     .grid2 { grid-template-columns: 1fr; }
     .sidebar { position: fixed; z-index: 20; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
     .app-shell:not(.nav-open) .sidebar { display: none; }
+    .request-detail-grid { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+  }
+  @media (max-width: 680px) {
+    .track-heading { align-items: stretch; flex-direction: column; gap: 14px; }
+    .track-heading .track-submit { width: 100%; }
+    .request-table-scroll { overflow: visible; }
+    .request-table-shell { background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+    .request-table-shell table { min-width: 0; }
+    .request-table-shell thead { display: none; }
+    .request-table-shell tbody { display: grid; gap: 12px; }
+    .request-table-shell tbody tr { display: grid; grid-template-columns: 1fr auto; gap: 12px 14px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 8px 22px rgba(9,46,54,.05); }
+    .request-table-shell tbody td { padding: 0; border: 0; }
+    .request-table-shell .request-primary { align-self: center; }
+    .request-table-shell .request-status { justify-self: end; }
+    .request-table-shell .request-details { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid var(--line-2); }
+    .request-table-shell .request-due-cell { grid-column: 1 / -1; }
+    .request-table-shell .request-due-cell::before { content: attr(data-label); margin-right: 7px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
   }
 </style>
 </head>
@@ -285,8 +316,11 @@
       </section>
 
       <section class="view" id="view-track">
-        <h1 class="welcome serif" id="track-title" style="font-size:28px">Requests</h1>
-        <p class="welcome-sub">Search, filter, and review submitted requests</p>
+        <div class="track-heading">
+          <div><h1 class="welcome serif" id="track-title" style="font-size:28px">Requests</h1>
+            <p class="welcome-sub">Search, filter, and review submitted requests</p></div>
+          <button class="btn track-submit" id="track-submit">Submit Request</button>
+        </div>
         <div class="table-controls table-toolbar">
           <input type="search" id="track-search" placeholder="Search request name…" />
           <input type="search" id="track-requester" placeholder="Filter by requester email…" />
@@ -1068,12 +1102,22 @@ document.getElementById('request-form').addEventListener('submit', async (e) => 
 // ---- Track ----
 let currentTrackCat = 'procurement'; let trackCursor = null; let trackLoadedFilter = { search:'', requester:'', apiStatus:'', activeOnly:true }; let trackStatusBuiltFor = null;
 document.getElementById('track-refresh').addEventListener('click', () => loadTrack(currentTrackCat, true));
+document.getElementById('track-submit').addEventListener('click', () => navTo({ view: 'submit', cat: currentTrackCat }));
 let searchDebounce;
 document.getElementById('track-search').addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => loadTrack(currentTrackCat, true), 350); });
 document.getElementById('track-requester').addEventListener('input', () => { clearTimeout(searchDebounce); searchDebounce = setTimeout(() => loadTrack(currentTrackCat, true), 350); });
 document.getElementById('track-status').addEventListener('change', () => loadTrack(currentTrackCat, true));
 document.getElementById('track-loadmore').addEventListener('click', () => loadTrack(currentTrackCat, false));
 function buildStatusFilter(cat) { const sel = document.getElementById('track-status'); sel.innerHTML = '<option value="">Active only</option><option value="__all">All statuses</option>' + (STATUS_OPTIONS[cat]||[]).map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join(''); }
+function formatTrackValue(columnId, value) {
+  const label = COLUMN_LABELS[columnId] || columnId;
+  if (EMAIL_RE.test(value)) return prettyName(value);
+  if (/cost|budget|estimate/i.test(label) && /^-?\d+(\.\d+)?$/.test(String(value))) {
+    return Number(value).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+  }
+  if (/date|due|needed by/i.test(label) && /^\d{4}-\d{2}-\d{2}/.test(String(value))) return fmtDate(String(value).slice(0, 10));
+  return value;
+}
 async function loadTrack(cat, reset) {
   const thead = document.getElementById('track-thead'); const tbody = document.getElementById('track-tbody'); const lmWrap = document.getElementById('track-loadmore-wrap'); const resultCount = document.getElementById('track-result-count');
   if (reset && trackStatusBuiltFor !== cat) { buildStatusFilter(cat); trackStatusBuiltFor = cat; }
@@ -1086,16 +1130,27 @@ async function loadTrack(cat, reset) {
   try {
     const res = await callApi({ action: 'list-board-items', category: cat, search: trackLoadedFilter.search || undefined, requester: trackLoadedFilter.requester || undefined, status: trackLoadedFilter.apiStatus || undefined, cursor: reset ? undefined : trackCursor, limit: trackLoadedFilter.activeOnly ? 100 : 25 });
     const cols = res.columns;
-    thead.innerHTML = '<tr><th>Name</th>' + cols.map(c => '<th>'+esc(COLUMN_LABELS[c] || c)+'</th>').join('') + '</tr>';
+    const dateCol = [...cols].reverse().find(c => /date|due|needed by/i.test(COLUMN_LABELS[c] || '')) || '';
+    const dateLabel = dateCol ? (COLUMN_LABELS[dateCol] || 'Due date') : 'Due date';
+    const detailCols = cols.filter(c => c !== res.statusColumn && c !== dateCol && COLUMN_LABELS[c] !== 'Status');
+    thead.innerHTML = '<tr><th class="col-request">Request</th><th class="col-status">Status</th><th class="col-details">Details</th><th class="col-due">'+esc(dateLabel)+'</th></tr>';
     let items = res.items;
     if (trackLoadedFilter.activeOnly) items = items.filter(it => !isDoneStatus(it.status));
     resultCount.textContent = items.length + (items.length === 1 ? ' request shown' : ' requests shown') + (res.hasMore ? ' · more available' : '');
     const rowsHtml = items.map(it => {
-      const tds = cols.map(c => { const val = it.columns[c] || '';
-        if (c === res.statusColumn || COLUMN_LABELS[c] === 'Status') { if (!val) return '<td></td>'; const col = statusColor(val, cat); return '<td><span class="status-pill" style="background:'+col.bg+';color:'+col.fg+'">'+esc(val)+'</span></td>'; }
-        if (EMAIL_RE.test(val)) return '<td title="'+esc(val)+'">'+esc(prettyName(val))+'</td>';
-        return '<td>'+esc(val)+'</td>'; }).join('');
-      return '<tr><td><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a></td>'+tds+'</tr>';
+      const status = it.status || '';
+      const statusStyle = statusColor(status, cat);
+      const details = detailCols.map(c => {
+        const raw = it.columns[c] || '';
+        if (!raw) return '';
+        return '<span class="request-detail"><span class="request-detail-label">'+esc(COLUMN_LABELS[c] || c)+'</span>'
+          + '<span class="request-detail-value" title="'+esc(raw)+'">'+esc(formatTrackValue(c, raw))+'</span></span>';
+      }).filter(Boolean).join('');
+      const dueRaw = dateCol ? (it.columns[dateCol] || '') : '';
+      return '<tr><td class="request-primary"><a class="request-name" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a></td>'
+        + '<td class="request-status">'+(status ? '<span class="status-pill" style="background:'+statusStyle.bg+';color:'+statusStyle.fg+'">'+esc(status)+'</span>' : '')+'</td>'
+        + '<td class="request-details"><div class="request-detail-grid">'+(details || '<span class="request-detail-empty">No additional details</span>')+'</div></td>'
+        + '<td class="request-due-cell" data-label="'+esc(dateLabel)+'"><span class="request-due">'+esc(dueRaw ? formatTrackValue(dateCol, dueRaw) : '—')+'</span></td></tr>';
     }).join('');
     if (reset) tbody.innerHTML = rowsHtml || '<tr><td colspan="'+(cols.length+1)+'"><div class="empty">'+(trackLoadedFilter.activeOnly ? 'No active requests.' : 'No matching requests.')+'</div></td></tr>';
     else tbody.insertAdjacentHTML('beforeend', rowsHtml);

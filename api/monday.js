@@ -698,6 +698,8 @@ async function mondayQuery(query, variables) {
 }
 
 const PROGRAM_CACHE_MS = 60 * 1000;
+const REQUESTABLE_PROGRAM_COLUMN = 'boolean_mm5yfh4r';
+const MILESTONE_ROLE_COLUMN = 'dropdown_mm5xpxcn';
 let programCache = { at: 0, items: null };
 
 function programDate(columns, id) {
@@ -709,15 +711,24 @@ function programDate(columns, id) {
   } catch (error) { return String(column.text || '').slice(0, 10); }
 }
 
+function programIsAvailable(column) {
+  if (!column) return false;
+  try {
+    const value = JSON.parse(column.value || 'null');
+    if (value && (value.checked === true || value.checked === 'true')) return true;
+  } catch (error) { /* fall back to the display text */ }
+  return ['true', 'yes', 'checked', 'v'].includes(String(column.text || '').trim().toLowerCase());
+}
+
 async function listPrograms() {
   if (programCache.items && Date.now() - programCache.at < PROGRAM_CACHE_MS) return programCache.items;
   const columns = CONTRACT.launch.columns;
-  const ids = [columns.type, columns.timeline, columns.liveDate, columns.dueDate];
+  const ids = [columns.type, columns.timeline, columns.liveDate, columns.dueDate, REQUESTABLE_PROGRAM_COLUMN, MILESTONE_ROLE_COLUMN];
   const first = await mondayQuery(
     `query ($board: [ID!], $cols: [String!]) {
       boards(ids: $board) {
         items_page(limit: 500) {
-          cursor items { id name url column_values(ids: $cols) { id text value } }
+          cursor items { id name url group { id title } column_values(ids: $cols) { id text value } }
         }
       }
     }`,
@@ -731,7 +742,7 @@ async function listPrograms() {
     const next = await mondayQuery(
       `query ($cursor: String!, $cols: [String!]) {
         next_items_page(cursor: $cursor, limit: 500) {
-          cursor items { id name url column_values(ids: $cols) { id text value } }
+          cursor items { id name url group { id title } column_values(ids: $cols) { id text value } }
         }
       }`,
       { cursor: page.cursor, cols: ids }
@@ -741,6 +752,7 @@ async function listPrograms() {
   const programs = items.map((item) => {
     const byId = {}; (item.column_values || []).forEach((column) => { byId[column.id] = column; });
     if (String((byId[columns.type] || {}).text || '').trim() !== 'Milestone') return null;
+    if (!programIsAvailable(byId[REQUESTABLE_PROGRAM_COLUMN])) return null;
     let timelineStart = '', timelineEnd = '';
     try {
       const timeline = JSON.parse((byId[columns.timeline] || {}).value || 'null');
@@ -749,11 +761,15 @@ async function listPrograms() {
     } catch (error) { /* timeline is optional */ }
     return {
       id: String(item.id), title: String(item.name || 'Untitled program').trim(), url: String(item.url || ''),
+      groupId: String((item.group && item.group.id) || ''),
+      groupTitle: String((item.group && item.group.title) || 'Other').trim(),
+      role: String((byId[MILESTONE_ROLE_COLUMN] || {}).text || '').trim(),
       timelineStart, timelineEnd,
       liveDate: programDate(byId, columns.liveDate),
       dueDate: programDate(byId, columns.dueDate)
     };
-  }).filter(Boolean).sort((left, right) => left.title.localeCompare(right.title));
+  }).filter(Boolean).sort((left, right) =>
+    left.groupTitle.localeCompare(right.groupTitle) || left.title.localeCompare(right.title));
   programCache = { at: Date.now(), items: programs };
   return programs;
 }
@@ -764,9 +780,9 @@ async function applyProgramSelection(fields) {
     delete fields.programItemId; delete fields.programTitle; delete fields.programUrl;
     return null;
   }
-  if (!/^\d+$/.test(id)) throw badRequest('Choose a current Program / Initiative from the list.');
+  if (!/^\d+$/.test(id)) throw badRequest('Choose a current opening or program from the list.');
   const program = (await listPrograms()).find((item) => item.id === id);
-  if (!program) throw badRequest('That Program / Initiative is no longer available. Refresh and choose a current milestone.');
+  if (!program) throw badRequest('That opening or program is no longer available. Refresh and choose a current option.');
   fields.programItemId = program.id;
   fields.programTitle = program.title;
   fields.programUrl = program.url || itemUrl(CONTRACT.launch.defaultBoardId, program.id);

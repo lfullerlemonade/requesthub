@@ -72,6 +72,7 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57gkn3', kind: 'dropdown' },
       { key: 'outlet', column: 'dropdown_mm5rm01q', kind: 'dropdown' },
+      { key: 'procurementOwnerId', column: 'multiple_person_mm5rbst0', kind: 'people' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5rp6zz', kind: 'date' },
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
     ],
@@ -530,11 +531,14 @@ function validateCreationFields(category, fields) {
     if (!Number.isFinite(budget) || budget < 0) throw badRequest('Estimated budget must be a valid non-negative amount.');
   }
   if (category === 'procurement') {
+    if (!fields.procurementOwnerId) missing.push('procurement owner');
     validateProcurementEstimate(fields.estimateBasis, fields.workingCostEstimate);
   }
   if (category === 'creative' && String(fields.requiresProcurement || '').toLowerCase() === 'yes') {
+    if (!fields.procurementOwnerId) missing.push('procurement owner');
     validateProcurementEstimate(fields.procurementEstimateBasis, fields.procurementWorkingCostEstimate);
   }
+  if (missing.length) throw badRequest(`Missing required integration field(s): ${missing.join(', ')}.`);
 }
 
 function statusFor(category, rawStatus) {
@@ -666,6 +670,10 @@ function buildColumnValues(cfg, fields) {
           ? { labels: raw.map(String) }
           : { labels: [String(raw)] };
         break;
+      case 'people':
+        if (!/^\d+$/.test(String(raw))) throw badRequest('Choose a current Procurement Owner from the list.');
+        cv[f.column] = { personsAndTeams: [{ id: Number(raw), kind: 'person' }] };
+        break;
       default:
         break;
     }
@@ -709,6 +717,43 @@ async function mondayQuery(query, variables) {
 const PROGRAM_CACHE_MS = 60 * 1000;
 const MILESTONE_ROLE_COLUMN = 'dropdown_mm5xpxcn';
 let programCache = { at: 0, items: null };
+let procurementOwnerCache = { at: 0, items: null };
+
+function normalizedPerson(value) {
+  return String(value || '').toLowerCase().normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function listProcurementOwners() {
+  if (procurementOwnerCache.items && Date.now() - procurementOwnerCache.at < 5 * 60 * 1000) {
+    return procurementOwnerCache.items;
+  }
+  const data = await mondayQuery(
+    `query ($board: [ID!], $cols: [String!]) {
+      boards(ids: $board) {
+        items_page(limit: 500) { items { name column_values(ids: $cols) { id text } } }
+      }
+      users(limit: 500) { id name email enabled }
+    }`,
+    { board: [String(USERS_BOARD)], cols: [USERS_EMAIL_COL] }
+  );
+  const accessItems = (((data || {}).boards || [])[0] || {}).items_page;
+  const allowedEmails = new Set();
+  const allowedNames = new Set();
+  for (const item of (accessItems && accessItems.items) || []) {
+    allowedNames.add(normalizedPerson(item.name));
+    const emailColumn = (item.column_values || []).find((column) => column.id === USERS_EMAIL_COL);
+    const email = String((emailColumn && emailColumn.text) || '').trim().toLowerCase();
+    if (email) allowedEmails.add(email);
+  }
+  const owners = (data.users || []).filter((user) => {
+    if (user.enabled === false || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
+    return allowedEmails.has(String(user.email || '').trim().toLowerCase()) || allowedNames.has(normalizedPerson(user.name));
+  }).map((user) => ({ id: String(user.id), name: String(user.name || user.email), email: String(user.email || '') }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  procurementOwnerCache = { at: Date.now(), items: owners };
+  return owners;
+}
 
 function programDate(columns, id) {
   const column = columns[id];
@@ -1041,6 +1086,18 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
   const cfg = BOARDS[category];
   if (!cfg) throw badRequest(`Unknown category "${category}".`);
   const f = f0;
+  const createsProcurement = category === 'procurement'
+    || (category === 'creative' && String(f.requiresProcurement || '').toLowerCase() === 'yes');
+  if (createsProcurement) {
+    const ownerId = String(f.procurementOwnerId || '').trim();
+    const owners = await listProcurementOwners();
+    if (!owners.some((owner) => owner.id === ownerId)) {
+      throw badRequest('Choose a current Procurement Owner from the list.');
+    }
+    // Intake owns the required need-on-property date. Sourcing owns the later
+    // order-by and expected-delivery dates.
+    if (category === 'procurement' && !f.liveOrOnPropertyDate) f.liveOrOnPropertyDate = f.dueDate;
+  }
   // Requesters can only file requests as themselves: force the requester-email
   // column to their signed-in identity so it always shows under "My Requests".
   if (role === 'requester' && authEmail && cfg.emailFieldKey) {
@@ -1140,7 +1197,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         requesterEmail: f.email,
         ccEmail: f.ccEmail,
         dueDate: f.idealDueDate,
-        liveOrOnPropertyDate: f.liveOrOnPropertyDate,
+        liveOrOnPropertyDate: f.liveOrOnPropertyDate || f.idealDueDate,
         launchImpact: f.launchImpact || 'unreviewed',
         launchWorkstream: f.launchWorkstream,
         launchPriority: f.launchPriority,
@@ -1150,6 +1207,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         itemDescription: f.procurementNotes || f.projectDescription || '',
         quantity: f.procurementQuantity,
         vendor: f.procurementVendor,
+        procurementOwnerId: f.procurementOwnerId,
         estimateBasis: f.procurementEstimateBasis,
         workingCostEstimate: f.procurementWorkingCostEstimate,
         notes: descParts.join('\n\n'),
@@ -1715,7 +1773,7 @@ export default async function handler(req, res) {
 
     // Access gate: data actions require a valid token issued by verify-email.
     // The token carries the signed-in email + role, which scopes what they see.
-    const GATED = new Set(['session', 'list-programs', 'dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
+    const GATED = new Set(['session', 'list-programs', 'list-procurement-owners', 'dashboard-counts', 'recent-submissions', 'list-board-items', 'create-routed-request', 'top-requesters']);
     let authRole = 'admin';
     let scopeRole = 'admin';
     let authEmail = null;
@@ -1755,6 +1813,9 @@ export default async function handler(req, res) {
         break;
       case 'list-programs':
         result = { ok: true, programs: await listPrograms(), schemaVersion: SCHEMA_VERSION };
+        break;
+      case 'list-procurement-owners':
+        result = { ok: true, owners: await listProcurementOwners(), schemaVersion: SCHEMA_VERSION };
         break;
       case 'create-routed-request':
         result = await createRoutedRequest({ category: params.category, fields: params.fields, role: authRole, authEmail });

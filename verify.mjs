@@ -78,7 +78,9 @@ const req = {
       programUrl: 'https://wrong.example/program',
       projectDescription: 'Verify the family handoff.',
       requiresProcurement: 'Yes',
-      procurementNotes: 'Printed table tent'
+      procurementNotes: 'Printed table tent',
+      procurementEstimateBasis: 'Internal Estimate',
+      procurementWorkingCostEstimate: '850.00'
     }
   }
 };
@@ -129,6 +131,8 @@ assert.deepEqual(procurement.link_mm5wfwm, {
   url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001',
   text: 'Dog Program'
 });
+assert.deepEqual(procurement.dropdown_mm5yhppt, { labels: ['Internal Estimate'] });
+assert.equal(procurement.numeric_mm5r88qe, '850.00');
 const procurementMetadata = JSON.parse(procurement.long_text_mm5wq9ad.text);
 const socialMetadata = JSON.parse(social.long_text_mm5w1sxt.text);
 assert.equal(procurementMetadata.schemaVersion, '1.2.0');
@@ -230,6 +234,9 @@ assert.match(html, /Filter by requester email/);
 assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
 assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/);
 assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
+assert.match(html, /key: 'procurementEstimateBasis', label: 'Estimate Basis'/);
+assert.match(html, /key: 'procurementWorkingCostEstimate', label: 'Working Cost Estimate'/);
+assert.doesNotMatch(html, /key: 'procurementBudget', label: 'Budget'/);
 assert.match(html, /Supporting Documents \(optional\)/);
 assert.match(html, /'Porte Cochere'/);
 assert.match(html, /What opening or program does this support\?/);

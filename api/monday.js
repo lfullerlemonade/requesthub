@@ -300,6 +300,7 @@ const EMAIL_LABELS = {
   ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet / area', programTitle: 'Program / initiative',
   liveOrOnPropertyDate: 'Live / on property', requestedCompletionDate: 'Requested completion',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
+  procurementEstimateBasis: 'Procurement estimate basis', procurementWorkingCostEstimate: 'Procurement working cost estimate',
   intendedUsage: 'Intended usage', photographerVideographer: 'Photographer / videographer', estimatedBudget: 'Estimated budget',
   socialPostDate: 'Date to post',
   cardholderName: 'Full name (on card)', personRequesting: 'Person requesting', jobTitle: 'Job title',
@@ -492,6 +493,24 @@ function assertCanonical(fields) {
   }
 }
 
+function validateProcurementEstimate(estimateBasis, workingCostEstimate) {
+  const allowedBases = ['Approved Budget', 'Vendor Quote', 'Internal Estimate', 'Planning Allowance', 'Estimate Needed'];
+  const basis = String(estimateBasis || '').trim();
+  if (!allowedBases.includes(basis)) throw badRequest('Choose how the procurement cost was estimated.');
+  const rawEstimate = workingCostEstimate;
+  if (basis === 'Estimate Needed') {
+    if (rawEstimate !== undefined && rawEstimate !== null && String(rawEstimate).trim() !== '') {
+      throw badRequest('Choose an estimate basis that matches the amount entered, or clear the amount when an estimate is still needed.');
+    }
+    return;
+  }
+  if (rawEstimate === undefined || rawEstimate === null || String(rawEstimate).trim() === '') {
+    throw badRequest('Enter a working cost estimate, or choose Estimate Needed.');
+  }
+  const estimate = Number(rawEstimate);
+  if (!Number.isFinite(estimate) || estimate <= 0) throw badRequest('Working cost estimate must be a valid amount greater than $0.');
+}
+
 function validateCreationFields(category, fields) {
   const missing = [];
   if (!fields.team) missing.push('team');
@@ -511,21 +530,10 @@ function validateCreationFields(category, fields) {
     if (!Number.isFinite(budget) || budget < 0) throw badRequest('Estimated budget must be a valid non-negative amount.');
   }
   if (category === 'procurement') {
-    const allowedBases = ['Approved Budget', 'Vendor Quote', 'Internal Estimate', 'Planning Allowance', 'Estimate Needed'];
-    const basis = String(fields.estimateBasis || '').trim();
-    if (!allowedBases.includes(basis)) throw badRequest('Choose how the procurement cost was estimated.');
-    const rawEstimate = fields.workingCostEstimate;
-    if (basis === 'Estimate Needed') {
-      if (rawEstimate !== undefined && rawEstimate !== null && String(rawEstimate).trim() !== '') {
-        throw badRequest('Choose an estimate basis that matches the amount entered, or clear the amount when an estimate is still needed.');
-      }
-    } else {
-      if (rawEstimate === undefined || rawEstimate === null || String(rawEstimate).trim() === '') {
-        throw badRequest('Enter a working cost estimate, or choose Estimate Needed.');
-      }
-      const estimate = Number(rawEstimate);
-      if (!Number.isFinite(estimate) || estimate <= 0) throw badRequest('Working cost estimate must be a valid amount greater than $0.');
-    }
+    validateProcurementEstimate(fields.estimateBasis, fields.workingCostEstimate);
+  }
+  if (category === 'creative' && String(fields.requiresProcurement || '').toLowerCase() === 'yes') {
+    validateProcurementEstimate(fields.procurementEstimateBasis, fields.procurementWorkingCostEstimate);
   }
 }
 
@@ -1142,7 +1150,8 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         itemDescription: f.procurementNotes || f.projectDescription || '',
         quantity: f.procurementQuantity,
         vendor: f.procurementVendor,
-        budget: f.procurementBudget,
+        estimateBasis: f.procurementEstimateBasis,
+        workingCostEstimate: f.procurementWorkingCostEstimate,
         notes: descParts.join('\n\n'),
       };
       assertCanonical(pf);

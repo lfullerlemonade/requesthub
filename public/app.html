@@ -402,7 +402,9 @@ const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Area / Campaign', type: 'select', options: OUTLETS, required: true },
+    { key: 'procurementOwnerId', label: 'Procurement Owner', type: 'owner', required: true,
+      hint: 'The person responsible for sourcing, ordering, and delivery follow-through.' },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
@@ -413,8 +415,8 @@ const CATEGORIES = {
     { key: 'workingCostEstimate', label: 'Working Cost Estimate', type: 'currency', required: true, min: '0.01',
       showIf: { field: 'estimateBasis', oneOf: ['Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance'] },
       hint: 'Enter the best current total in USD. An approved budget is not required; use a reasonable planning allowance when necessary. Do not enter $0.' },
-    { key: 'dueDate', label: 'Requested Completion Date', type: 'date', required: true },
-    { key: 'liveOrOnPropertyDate', label: 'Live / On Property Date (if different)', type: 'date' },
+    { key: 'dueDate', label: 'Need on Property Date', type: 'date', required: true,
+      hint: 'The latest date the item must be delivered and ready to use.' },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'files', label: 'Supporting Documents (optional)', type: 'file', full: true,
@@ -467,6 +469,9 @@ const CATEGORIES = {
     { key: 'liveOrOnPropertyDate', label: 'Live / On Property Date (if different)', type: 'date' },
     { key: 'projectDescription', label: 'Project Description', type: 'textarea', full: true, required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'requiresProcurement', label: 'Requires procurement?', type: 'select', options: ['No','Yes'], required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
+    { key: 'procurementOwnerId', label: 'Procurement Owner', type: 'owner', required: true,
+      showIf: { field: 'requiresProcurement', equals: 'Yes' },
+      hint: 'The person responsible for sourcing, ordering, and delivery follow-through.' },
     { key: 'procurementNotes', label: 'What needs to be procured?', type: 'textarea', full: true, showIf: { field: 'requiresProcurement', equals: 'Yes' } },
     { key: 'procurementQuantity', label: 'Quantity', type: 'number', showIf: { field: 'requiresProcurement', equals: 'Yes' } },
     { key: 'procurementVendor', label: 'Vendor', type: 'text', showIf: { field: 'requiresProcurement', equals: 'Yes' } },
@@ -856,6 +861,8 @@ let currentCat = 'creative';
 const pendingSubmissionIds = {};
 let PROGRAMS = [];
 let PROGRAMS_LOADED = false;
+let PROCUREMENT_OWNERS = [];
+let PROCUREMENT_OWNERS_LOADED = false;
 function newRequestId() {
   if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -884,6 +891,12 @@ function fieldControl(f) {
       + '<input type="hidden" name="'+f.key+'" value="" />'
       + '<div class="program-results" id="'+resultsId+'" role="listbox" hidden></div>'
       + '<span class="program-picker-note">Optional. Every item marked Milestone on the Launch board is searchable here.</span></div>';
+  }
+  if (f.type === 'owner') {
+    const disabled = PROCUREMENT_OWNERS_LOADED ? '' : ' disabled';
+    return '<select name="'+f.key+'"'+req+disabled+'><option value="">— Select owner —</option>'
+      + PROCUREMENT_OWNERS.map(owner => '<option value="'+esc(owner.id)+'">'+esc(owner.name)+(owner.email ? ' — '+esc(owner.email) : '')+'</option>').join('')
+      + '</select>';
   }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
   if (f.type === 'multiselect') return '<div class="choice-grid">' + f.options.map(o =>
@@ -962,6 +975,16 @@ async function loadPrograms() {
     toast('Programs could not be loaded: ' + error.message, true);
   }
   PROGRAMS_LOADED = true;
+}
+async function loadProcurementOwners() {
+  try {
+    const result = await callApi({ action: 'list-procurement-owners' });
+    PROCUREMENT_OWNERS = result.owners || [];
+  } catch (error) {
+    PROCUREMENT_OWNERS = [];
+    toast('Procurement owners could not be loaded: ' + error.message, true);
+  }
+  PROCUREMENT_OWNERS_LOADED = true;
 }
 function renderForm() {
   const cfg = CATEGORIES[currentCat]; const form = document.getElementById('request-form');
@@ -1166,7 +1189,7 @@ async function loadTrack(cat, reset) {
 
 // ---- Init ----
 (async function initializeApp() {
-  await loadPrograms();
+  await Promise.all([loadPrograms(), loadProcurementOwners()]);
   renderForm();
   const initialParams = new URLSearchParams(location.search);
   const initialView = initialParams.get('view');

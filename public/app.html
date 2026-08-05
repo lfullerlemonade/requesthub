@@ -843,7 +843,7 @@ function fieldControl(f) {
     return '<div class="program-picker"><input type="search" class="program-search" placeholder="Start typing an opening or program…" aria-label="Search openings and programs" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="'+resultsId+'" autocomplete="off"'+disabled+' />'
       + '<input type="hidden" name="'+f.key+'" value="" />'
       + '<div class="program-results" id="'+resultsId+'" role="listbox" hidden></div>'
-      + '<span class="program-picker-note">Optional. Only approved openings and programs from the Launch board are shown.</span></div>';
+      + '<span class="program-picker-note">Optional. Every item marked Milestone on the Launch board is searchable here.</span></div>';
   }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
   if (f.type === 'multiselect') return '<div class="choice-grid">' + f.options.map(o =>
@@ -866,7 +866,7 @@ function formatProgramDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function programResultsHtml(programs) {
-  if (!programs.length) return '<div class="program-no-results">No approved opening or program matches that search. If this should be available, check “Available in Request Hub” on its milestone in Monday.</div>';
+  if (!programs.length) return '<div class="program-no-results">No milestone matches that search. Confirm the item’s Type is set to Milestone on the Launch board.</div>';
   const groups = new Map();
   programs.forEach(program => {
     const group = program.groupTitle || 'Other';

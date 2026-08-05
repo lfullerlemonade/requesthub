@@ -13,6 +13,10 @@ delete process.env.EMAIL_WEBHOOK_URL;
 const calls = [];
 let nextItem = 100;
 globalThis.fetch = async (_url, options) => {
+  if (String(_url).endsWith('/file')) {
+    calls.push({ fileUpload: true, body: options.body });
+    return { ok: true, json: async () => ({ data: { add_file_to_column: { id: 'asset-1' } } }) };
+  }
   const body = JSON.parse(options.body);
   calls.push(body);
   let data;
@@ -178,7 +182,8 @@ await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'procurement', fields: {
       name: 'Lobby planters', team: 'Guest Services', requesterEmail: 'tester@example.com',
-      dueDate: '2026-08-25', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00'
+      dueDate: '2026-08-25', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00',
+      files: [{ name: 'vendor-quote.pdf', type: 'application/pdf', data: Buffer.from('quote').toString('base64') }]
     }
   }
 }, res);
@@ -189,6 +194,8 @@ assert.ok(procurementCreate, 'Procurement request should create a Procurement it
 const procurementColumns = JSON.parse(procurementCreate.variables.columnValues);
 assert.equal(procurementColumns.numeric_mm5r88qe, '3750.00');
 assert.deepEqual(procurementColumns.dropdown_mm5yhppt, { labels: ['Planning Allowance'] });
+assert.equal(payload.filesAttached, 1);
+assert.ok(calls.slice(procurementCallStart).some((call) => call.fileUpload), 'Procurement document should upload to Monday');
 
 payload = null;
 res.statusCode = undefined;
@@ -211,6 +218,7 @@ assert.match(html, /Filter by requester email/);
 assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
 assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/);
 assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
+assert.match(html, /Supporting Documents \(optional\)/);
 assert.match(html, /What opening or program does this support\?/);
 assert.match(html, /Search openings and programs/);
 assert.match(html, /programOptionsHtml/);

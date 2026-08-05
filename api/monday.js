@@ -699,7 +699,6 @@ async function mondayQuery(query, variables) {
 }
 
 const PROGRAM_CACHE_MS = 60 * 1000;
-const REQUESTABLE_PROGRAM_COLUMN = 'boolean_mm5yfh4r';
 const MILESTONE_ROLE_COLUMN = 'dropdown_mm5xpxcn';
 let programCache = { at: 0, items: null };
 
@@ -712,19 +711,10 @@ function programDate(columns, id) {
   } catch (error) { return String(column.text || '').slice(0, 10); }
 }
 
-function programIsAvailable(column) {
-  if (!column) return false;
-  try {
-    const value = JSON.parse(column.value || 'null');
-    if (value && (value.checked === true || value.checked === 'true')) return true;
-  } catch (error) { /* fall back to the display text */ }
-  return ['true', 'yes', 'checked', 'v'].includes(String(column.text || '').trim().toLowerCase());
-}
-
 async function listPrograms() {
   if (programCache.items && Date.now() - programCache.at < PROGRAM_CACHE_MS) return programCache.items;
   const columns = CONTRACT.launch.columns;
-  const ids = [columns.type, columns.timeline, columns.liveDate, columns.dueDate, REQUESTABLE_PROGRAM_COLUMN, MILESTONE_ROLE_COLUMN];
+  const ids = [columns.type, columns.timeline, columns.liveDate, columns.dueDate, MILESTONE_ROLE_COLUMN];
   const first = await mondayQuery(
     `query ($board: [ID!], $cols: [String!]) {
       boards(ids: $board) {
@@ -753,7 +743,6 @@ async function listPrograms() {
   const programs = items.map((item) => {
     const byId = {}; (item.column_values || []).forEach((column) => { byId[column.id] = column; });
     if (String((byId[columns.type] || {}).text || '').trim() !== 'Milestone') return null;
-    if (!programIsAvailable(byId[REQUESTABLE_PROGRAM_COLUMN])) return null;
     let timelineStart = '', timelineEnd = '';
     try {
       const timeline = JSON.parse((byId[columns.timeline] || {}).value || 'null');

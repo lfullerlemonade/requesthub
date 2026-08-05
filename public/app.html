@@ -125,6 +125,9 @@
   .field textarea { min-height: 92px; resize: vertical; }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(255,192,63,0.26); }
   .field-hint { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.5; margin: -2px 0 8px; }
+  .program-picker { display: grid; gap: 8px; }
+  .program-picker .program-search { padding-left: 36px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23697774' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E") no-repeat 12px center; }
+  .program-picker-note { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
   .check { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; user-select: none; background: #fff; }
   .check input { width: auto; margin: 0; accent-color: var(--seaweed); }
@@ -359,7 +362,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'itemDescription', label: "Item / What's needed", type: 'text' },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'vendor', label: 'Vendor', type: 'text' },
@@ -379,7 +382,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
     { key: 'quantity', label: 'Quantity', type: 'number' },
     { key: 'dueDate', label: 'Requested Completion Date', type: 'date', required: true },
@@ -395,7 +398,7 @@ const CATEGORIES = {
     { key: 'name', label: 'Project Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'intendedUsage', label: 'Where will the photos or video be used?', type: 'multiselect',
       options: ['Website','Organic Social','Paid Social / Advertising','Email','Print','PR / Press','On Property','Other'],
       showIf: { field: 'contentType', oneOf: ['Photography','Videography'] }, required: true, full: true,
@@ -431,7 +434,7 @@ const CATEGORIES = {
   print: { label: 'Print', autoName: true, fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Primary Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
     { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
       options: ['Julene (breakfast)','Julene (bar)','Citrus Shack','Lovebirds','Sandbar'], showIf: { field: 'printType', equals: 'Menus' }, required: true, full: true },
@@ -448,7 +451,7 @@ const CATEGORIES = {
     fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'contact', label: 'Contact', type: 'text', required: true },
     { key: 'eventName', label: 'Event Name', type: 'text', required: true },
@@ -471,7 +474,7 @@ const CATEGORIES = {
     { key: 'name', label: 'What do you need?', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
     { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
-    { key: 'programItemId', label: 'Program / Initiative (if applicable)', type: 'program' },
+    { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
     { key: 'details', label: 'Describe your request or question', type: 'textarea', full: true, required: true },
@@ -826,9 +829,10 @@ function selectCategory(key) {
 function fieldControl(f) {
   const req = f.required ? ' required' : '';
   if (f.type === 'program') {
-    const label = PROGRAMS_LOADED ? '— Not connected to a program —' : '— Loading programs… —';
-    return '<select name="'+f.key+'"'+req+(PROGRAMS_LOADED ? '' : ' disabled')+'><option value="">'+label+'</option>'
-      + PROGRAMS.map(p => '<option value="'+esc(p.id)+'">'+esc(programOptionLabel(p))+'</option>').join('') + '</select>';
+    const disabled = PROGRAMS_LOADED ? '' : ' disabled';
+    return '<div class="program-picker"><input type="search" class="program-search" placeholder="Search openings and programs…" aria-label="Search openings and programs"'+disabled+' />'
+      + '<select name="'+f.key+'"'+req+disabled+'>'+programOptionsHtml(PROGRAMS)+'</select>'
+      + '<span class="program-picker-note">Optional. Only approved openings and programs from the Launch board are shown.</span></div>';
   }
   if (f.type === 'select') return '<select name="'+f.key+'"'+req+'><option value="">— Select —</option>' + f.options.map(o => '<option value="'+esc(o)+'">'+esc(o)+'</option>').join('') + '</select>';
   if (f.type === 'multiselect') return '<div class="choice-grid">' + f.options.map(o =>
@@ -843,7 +847,42 @@ function fieldControl(f) {
 }
 function programOptionLabel(program) {
   const end = program.timelineEnd || program.liveDate || program.dueDate || '';
-  return program.title + (end ? ' — through ' + end : '');
+  return program.title + (end ? ' — ' + formatProgramDate(end) : '');
+}
+function formatProgramDate(value) {
+  if (!value) return '';
+  const date = new Date(value + 'T12:00:00');
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function programOptionsHtml(programs, selected) {
+  const label = PROGRAMS_LOADED ? '— Not connected to an opening or program —' : '— Loading openings and programs… —';
+  const groups = new Map();
+  programs.forEach(program => {
+    const group = program.groupTitle || 'Other';
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(program);
+  });
+  let html = '<option value="">'+label+'</option>';
+  groups.forEach((items, group) => {
+    html += '<optgroup label="'+esc(group)+'">' + items.map(program =>
+      '<option value="'+esc(program.id)+'"'+(String(program.id) === String(selected || '') ? ' selected' : '')+'>'+esc(programOptionLabel(program))+'</option>'
+    ).join('') + '</optgroup>';
+  });
+  return html;
+}
+function bindProgramPickers(form) {
+  form.querySelectorAll('.program-picker').forEach(picker => {
+    const search = picker.querySelector('.program-search');
+    const select = picker.querySelector('select[name]');
+    if (!search || !select) return;
+    search.addEventListener('input', () => {
+      const selected = select.value;
+      const query = search.value.trim().toLowerCase();
+      const filtered = !query ? PROGRAMS : PROGRAMS.filter(program =>
+        [program.title, program.groupTitle, program.role].some(value => String(value || '').toLowerCase().includes(query)));
+      select.innerHTML = programOptionsHtml(filtered, selected);
+    });
+  });
 }
 async function loadPrograms() {
   try {
@@ -881,6 +920,7 @@ function renderForm() {
     }
   });
   form.querySelectorAll('select[name]').forEach(sel => sel.addEventListener('change', applyConditions));
+  bindProgramPickers(form);
   applyConditions();
 }
 function applyConditions() {

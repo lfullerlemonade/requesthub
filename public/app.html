@@ -410,7 +410,7 @@ const CATEGORIES = {
     { key: 'directPhone', label: 'Direct Phone Number', type: 'tel', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
     { key: 'mobilePhone', label: 'Mobile Phone Number (optional)', type: 'tel', showIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'requestedCompletionDate', label: 'Requested Completion Date', type: 'date', showIf: { field: 'contentType', equals: 'Business Card' }, required: true },
-    { key: 'requesterName', label: 'Your Name', type: 'text', required: true },
+    { key: 'requesterName', label: 'Your Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'email', label: 'Your Email Address', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates", hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'idealDueDate', label: 'Ideal Due Date', type: 'date', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },

@@ -21,11 +21,20 @@ globalThis.fetch = async (_url, options) => {
       id: '19000000001',
       name: 'Dog Program',
       url: 'https://hbcapital.monday.com/boards/18424230222/pulses/19000000001',
+      group: { id: 'group_property', title: 'Property Wide Programs' },
       column_values: [
         { id: 'dropdown_mm5q4mx2', text: 'Milestone', value: null },
+        { id: 'boolean_mm5yfh4r', text: 'v', value: '{"checked":true}' },
+        { id: 'dropdown_mm5xpxcn', text: 'Launch', value: null },
         { id: 'timerange_mkyp8kx7', text: '2026-08-01 - 2026-10-15', value: '{"from":"2026-08-01","to":"2026-10-15"}' },
         { id: 'date_mm5qb732', text: '2026-10-15', value: '{"date":"2026-10-15"}' },
-        { id: 'date_mm5w17n3', text: '2026-10-10', value: '{"date":"2026-10-10"}' }
+        { id: 'date_mm5q5w63', text: '2026-10-10', value: '{"date":"2026-10-10"}' }
+      ]
+    }, {
+      id: '19000000002', name: 'Internal readiness checkpoint', group: { id: 'group_property', title: 'Property Wide Programs' },
+      column_values: [
+        { id: 'dropdown_mm5q4mx2', text: 'Milestone', value: null },
+        { id: 'boolean_mm5yfh4r', text: '', value: '{"checked":false}' }
       ]
     }] } }] };
   } else if (body.query.includes('items_page')) {
@@ -202,6 +211,11 @@ assert.match(html, /Filter by requester email/);
 assert.doesNotMatch(html, /key: 'requesterName', label: 'Your Name'/);
 assert.match(html, /key: 'workingCostEstimate', label: 'Working Cost Estimate'/);
 assert.match(html, /Approved Budget','Vendor Quote','Internal Estimate','Planning Allowance','Estimate Needed/);
+assert.match(html, /What opening or program does this support\?/);
+assert.match(html, /Search openings and programs/);
+assert.match(html, /programOptionsHtml/);
+assert.match(html, /optgroup/);
+assert.doesNotMatch(html, /Program \/ Initiative \(if applicable\)/);
 
 // Regression: a user with a valid legacy rh_session cookie can also have the
 // literal shared-auth marker in localStorage. The marker must not mask the

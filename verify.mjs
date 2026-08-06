@@ -68,6 +68,7 @@ const req = {
       contentType: 'Social Media',
       name: 'Phase 2 verification',
       team: 'Guest Services',
+      area: 'Front Office',
       outlet: 'Lobby',
       email: 'tester@example.com',
       idealDueDate: '2026-08-10',
@@ -151,7 +152,7 @@ res.statusCode = undefined;
 await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'creative', fields: {
-      contentType: 'Photography', name: 'Incomplete shoot', team: 'Brand',
+      contentType: 'Photography', name: 'Incomplete shoot', team: 'Brand', area: 'Content',
       email: 'tester@example.com', idealDueDate: '2026-08-28',
       projectDescription: 'Budget is intentionally missing.', intendedUsage: ['Website']
     }
@@ -167,7 +168,7 @@ await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'creative', fields: {
       requestId: photoRequestId, requestFamilyId: photoRequestId,
-      contentType: 'Photography', name: 'Summer lifestyle shoot', team: 'Brand',
+      contentType: 'Photography', name: 'Summer lifestyle shoot', team: 'Brand', area: 'Content',
       email: 'tester@example.com', idealDueDate: '2026-08-28',
       projectDescription: 'Lifestyle photography for the fall campaign.',
       requiresProcurement: 'No',
@@ -191,7 +192,7 @@ res.statusCode = undefined;
 await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'procurement', fields: {
-      name: 'Lobby planters', team: 'Guest Services', requesterEmail: 'tester@example.com',
+      name: 'Lobby planters', team: 'Guest Services', area: 'Lobby', requesterEmail: 'tester@example.com',
       dueDate: '2026-08-25', outlet: 'Porte Cochere', estimateBasis: 'Planning Allowance', workingCostEstimate: '3750.00',
       files: [{ name: 'vendor-quote.pdf', type: 'application/pdf', data: Buffer.from('quote').toString('base64') }]
     }
@@ -213,7 +214,7 @@ res.statusCode = undefined;
 await handler({
   method: 'POST', headers: {}, body: {
     action: 'create-routed-request', category: 'procurement', fields: {
-      name: 'Missing estimate', team: 'Guest Services', requesterEmail: 'tester@example.com',
+      name: 'Missing estimate', team: 'Guest Services', area: 'Lobby', requesterEmail: 'tester@example.com',
       dueDate: '2026-08-25', estimateBasis: 'Internal Estimate'
     }
   }

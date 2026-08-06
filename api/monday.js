@@ -728,24 +728,49 @@ async function listProcurementOwners() {
   if (procurementOwnerCache.items && procurementOwnerCache.items.length && Date.now() - procurementOwnerCache.at < 5 * 60 * 1000) {
     return procurementOwnerCache.items;
   }
-  const data = await mondayQuery(
-    `query ($accessBoard: [ID!], $procurementBoard: [ID!], $cols: [String!]) {
-      accessBoard: boards(ids: $accessBoard) {
-        items_page(limit: 500) { items { name column_values(ids: $cols) { id text } } }
-      }
-      procurementBoard: boards(ids: $procurementBoard) {
-        subscribers { id name email status is_deleted }
-        owners { id name email status is_deleted }
-      }
-      users(limit: 500) { id name email status is_deleted }
-    }`,
-    {
-      accessBoard: [String(USERS_BOARD)],
-      procurementBoard: [String(BOARDS.procurement.boardId)],
-      cols: [USERS_EMAIL_COL]
-    }
-  );
-  const accessItems = (((data || {}).accessBoard || [])[0] || {}).items_page;
+  // These sources have different Monday permission requirements. Keep them
+  // independent so one denied field cannot turn the entire owner dropdown
+  // into a 502 response.
+  let accessItems = null;
+  let accountUsers = [];
+  let boardPeople = [];
+  try {
+    const data = await mondayQuery(
+      `query ($board: [ID!], $cols: [String!]) {
+        boards(ids: $board) {
+          items_page(limit: 500) { items { name column_values(ids: $cols) { id text } } }
+        }
+      }`,
+      { board: [String(USERS_BOARD)], cols: [USERS_EMAIL_COL] }
+    );
+    accessItems = (((data || {}).boards || [])[0] || {}).items_page;
+  } catch (error) {
+    console.warn('Procurement owner access-board lookup failed:', error.message);
+  }
+  try {
+    const data = await mondayQuery(
+      `query { users(limit: 500) { id name email status is_deleted } }`,
+      {}
+    );
+    accountUsers = (data && data.users) || [];
+  } catch (error) {
+    console.warn('Procurement owner account-user lookup failed:', error.message);
+  }
+  try {
+    const data = await mondayQuery(
+      `query ($board: [ID!]) {
+        boards(ids: $board) {
+          subscribers { id name email status is_deleted }
+          owners { id name email status is_deleted }
+        }
+      }`,
+      { board: [String(BOARDS.procurement.boardId)] }
+    );
+    const procurementBoard = (((data || {}).boards || [])[0] || {});
+    boardPeople = [...(procurementBoard.subscribers || []), ...(procurementBoard.owners || [])];
+  } catch (error) {
+    console.warn('Procurement board people lookup failed:', error.message);
+  }
   const allowedEmails = new Set();
   const allowedNames = new Set();
   for (const item of (accessItems && accessItems.items) || []) {
@@ -754,11 +779,9 @@ async function listProcurementOwners() {
     const email = String((emailColumn && emailColumn.text) || '').trim().toLowerCase();
     if (email) allowedEmails.add(email);
   }
-  const procurementBoard = (((data || {}).procurementBoard || [])[0] || {});
-  const boardPeople = [...(procurementBoard.subscribers || []), ...(procurementBoard.owners || [])];
   const boardPersonIds = new Set(boardPeople.map((user) => String(user.id)));
   const candidates = new Map();
-  for (const user of [...(data.users || []), ...boardPeople]) candidates.set(String(user.id), user);
+  for (const user of [...accountUsers, ...boardPeople]) candidates.set(String(user.id), user);
   const owners = [...candidates.values()].filter((user) => {
     if (user.status !== 'ACTIVE' || user.is_deleted || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
     return boardPersonIds.has(String(user.id))

@@ -398,11 +398,18 @@ const CATEGORY_ORDER = ['creative', 'procurement', 'print', 'uniform', 'beo', 'g
 
 const TEAMS = ['Sales','Front Office','Rooms','F&B','Pool & Beach','Engineering','Housekeeping','Marketing','Ownership','Brand','Guest Services'];
 const OUTLETS = ['Campaigns','The Sunny','Julene','Citrus Shack','Lovebirds','Sandbar','Newport Room','Pool / Beach','Rooms / E-commerce','Lobby','Porte Cochere'];
+// Physical area or department. Must stay identical to canonical.areas in
+// lib/integration-contract.cjs and to the Monday dropdown labels — the Launch
+// Hub groups on this value across every request board.
+const AREAS = ['Property-wide','Content','Guest Services','Front Office','Lobby','Elevator','Elevator / Vestibule','Lovebirds','Lovebirds Habitat','Pool & Beach','Citrus Shack','Julene','Knook','Engineering','Guestrooms','Corridors','HR','Housekeeping','Sales','Merchandise','Minibar / IRD'];
+
 const CATEGORIES = {
   procurement: { label: 'Procurement', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign', type: 'select', options: OUTLETS, required: true },
+    { key: 'area', label: 'Area / Department', type: 'select', options: AREAS, required: true,
+      hint: 'The area or department this is for. This is how it shows up in the launch views.' },
+    { key: 'outlet', label: 'Outlet / Campaign', type: 'select', options: OUTLETS, required: true },
     { key: 'procurementOwnerId', label: 'Procurement Owner', type: 'owner', required: true,
       hint: 'The person responsible for sourcing, ordering, and delivery follow-through.' },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
@@ -426,7 +433,9 @@ const CATEGORIES = {
   uniform: { label: 'Uniform', fields: [
     { key: 'name', label: 'Request Title', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'area', label: 'Area / Department', type: 'select', options: AREAS, required: true,
+      hint: 'The area or department this is for. This is how it shows up in the launch views.' },
+    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'uniformType', label: 'Uniform Type', type: 'select', options: ['Outerwear (jacket, vest, coat)','Shirt/Blouse','Pants/Skirt','T-shirt','Polo','Accessories (tie, scarf, hat)','Footwear','Other'] },
     { key: 'quantity', label: 'Quantity', type: 'number' },
@@ -442,7 +451,9 @@ const CATEGORIES = {
     { key: 'contentType', label: 'Content Type', type: 'select', options: ['Graphic Design','Property / Place Design','Photography','Videography','Social Media','Business Card','Copywriting','Deck','Other'] },
     { key: 'name', label: 'Project Name', type: 'text', required: true, hideIf: { field: 'contentType', equals: 'Business Card' } },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'area', label: 'Area / Department', type: 'select', options: AREAS, required: true,
+      hint: 'The area or department this is for. This is how it shows up in the launch views.' },
+    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'intendedUsage', label: 'Where will the photos or video be used?', type: 'multiselect',
       options: ['Website','Organic Social','Paid Social / Advertising','Email','Print','PR / Press','On Property','Other'],
@@ -487,7 +498,9 @@ const CATEGORIES = {
   ] },
   print: { label: 'Print', autoName: true, fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Primary Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'area', label: 'Area / Department', type: 'select', options: AREAS, required: true,
+      hint: 'The area or department this is for. This is how it shows up in the launch views.' },
+    { key: 'outlet', label: 'Primary Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'printType', label: 'Type', type: 'select', options: ['Menus','Other'], required: true },
     { key: 'outletQuantities', label: 'Menus by outlet — check each outlet and enter a quantity', type: 'outletqty',
@@ -504,7 +517,7 @@ const CATEGORIES = {
     note: 'Please submit BEO requests by Friday at 10am for the BEO package that goes out the following Monday at 3pm.',
     fields: [
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'contact', label: 'Contact', type: 'text', required: true },
@@ -527,7 +540,9 @@ const CATEGORIES = {
   general: { label: 'Other', fields: [
     { key: 'name', label: 'What do you need?', type: 'text', required: true },
     { key: 'team', label: 'Team', type: 'select', options: TEAMS, required: true },
-    { key: 'outlet', label: 'Outlet / Area / Campaign (if applicable)', type: 'select', options: OUTLETS },
+    { key: 'area', label: 'Area / Department', type: 'select', options: AREAS, required: true,
+      hint: 'The area or department this is for. This is how it shows up in the launch views.' },
+    { key: 'outlet', label: 'Outlet / Campaign (if applicable)', type: 'select', options: OUTLETS },
     { key: 'programItemId', label: 'What opening or program does this support?', type: 'program', full: true },
     { key: 'requesterEmail', label: 'Requester Email', type: 'email', required: true },
     { key: 'ccEmail', label: 'Also Notify (optional)', type: 'email', hint: "Another person to CC on updates" },
@@ -538,7 +553,7 @@ const CATEGORIES = {
 };
 
 const COLUMN_LABELS = {
-  color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', numeric_mm5r88qe: 'Working Cost Estimate', dropdown_mm5yhppt: 'Estimate Basis', date_mm3yn5hj: 'Due Date',
+  color_mm3ym1pj: 'Status', dropdown_mm57gkn3: 'Team', dropdown_mm5znnsw: 'Area', email_mm57tjxr: 'Requested By', dropdown_mm5rm01q: 'Outlet', numeric_mm3yee8z: 'Quantity', numeric_mm5r88qe: 'Working Cost Estimate', dropdown_mm5yhppt: 'Estimate Basis', date_mm3yn5hj: 'Due Date',
   color_mm3yma9j: 'Status', dropdown_mm3y16t7: 'Uniform Type', dropdown_mm57xa91: 'Team', email_mm57fky2: 'Requested By', numeric_mm3ygc6y: 'Quantity', date_mm3y77nq: 'Due Date',
   color_mm57d4mj: 'Status', dropdown_mm57r0h9: 'Content Type', dropdown_mm575bmp: 'Team', email_mm57jmf2: 'Requester Email', date_mm57j8b: 'Ideal Due Date',
   color_mm57d28j: 'Status', color_mm57egma: 'Print Type', dropdown_mm57k4ha: 'Team', email_mm57r2z6: 'Requested By', dropdown_mm57yjtk: 'Outlet(s)', numeric_mm57rqaq: 'Quantity', date_mm57f4h4: 'Needed By',

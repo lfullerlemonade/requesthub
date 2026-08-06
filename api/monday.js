@@ -749,7 +749,7 @@ async function listProcurementOwners() {
   }
   try {
     const data = await mondayQuery(
-      `query { users(limit: 500) { id name email status is_deleted } }`,
+      `query { users(limit: 500) { id name email } }`,
       {}
     );
     accountUsers = (data && data.users) || [];
@@ -760,8 +760,8 @@ async function listProcurementOwners() {
     const data = await mondayQuery(
       `query ($board: [ID!]) {
         boards(ids: $board) {
-          subscribers { id name email status is_deleted }
-          owners { id name email status is_deleted }
+          subscribers { id name email }
+          owners { id name email }
         }
       }`,
       { board: [String(BOARDS.procurement.boardId)] }
@@ -783,7 +783,7 @@ async function listProcurementOwners() {
   const candidates = new Map();
   for (const user of [...accountUsers, ...boardPeople]) candidates.set(String(user.id), user);
   const owners = [...candidates.values()].filter((user) => {
-    if (user.status !== 'ACTIVE' || user.is_deleted || /@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
+    if (/@agent\.monday\.com$/i.test(String(user.email || ''))) return false;
     return boardPersonIds.has(String(user.id))
       || allowedEmails.has(String(user.email || '').trim().toLowerCase())
       || allowedNames.has(normalizedPerson(user.name));

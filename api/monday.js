@@ -57,7 +57,7 @@ const BOARDS = {
     dateColumn: 'date_mm3yn5hj',        // due date — powers Overdue / Due This Week
     teamColumn: 'dropdown_mm57gkn3',    // Team — powers "open by team" chart
     fileColumn: 'file_mm3ygsy5',        // supporting documents land in Monday's Attachments / Files area
-    tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'numeric_mm5r88qe', 'dropdown_mm5yhppt', 'date_mm3yn5hj'],
+    tableColumns: ['color_mm3ym1pj', 'dropdown_mm57gkn3', 'dropdown_mm5znnsw', 'email_mm57tjxr', 'dropdown_mm5rm01q', 'numeric_mm3yee8z', 'numeric_mm5r88qe', 'dropdown_mm5yhppt', 'date_mm3yn5hj'],
     fields: [
       { key: 'name', column: 'name', kind: 'name' },
       { key: 'department', column: 'text_mm3ytbvq', kind: 'text' },
@@ -72,6 +72,7 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm578ffm', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57gkn3', kind: 'dropdown' },
       { key: 'outlet', column: 'dropdown_mm5rm01q', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5znnsw', kind: 'dropdown' },
       { key: 'procurementOwnerId', column: 'multiple_person_mm5rbst0', kind: 'people' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5rp6zz', kind: 'date' },
       { key: 'notes', column: 'long_text_mm3y661f', kind: 'long_text' },
@@ -101,6 +102,7 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm572kjx', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57xa91', kind: 'dropdown' },
       { key: 'outlet', column: 'dropdown_mm5w45ch', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5zxw8s', kind: 'dropdown' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5wbgg7', kind: 'date' },
     ],
   },
@@ -124,6 +126,7 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm57x2pd', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm575bmp', kind: 'dropdown' },
       { key: 'outlet', column: 'dropdown_mm5ww1g9', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5zr07b', kind: 'dropdown' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5w7dnp', kind: 'date' },
       { key: 'idealDueDate', column: 'date_mm57j8b', kind: 'date' },
       { key: 'projectDescription', column: 'long_text_mm57wa18', kind: 'long_text' },
@@ -155,6 +158,7 @@ const BOARDS = {
       { key: 'ccEmail', column: 'email_mm579cnx', kind: 'email' },   // "Also Notify" — optional extra recipient
       { key: 'team', column: 'dropdown_mm57k4ha', kind: 'dropdown' },
       { key: 'outlet', column: 'dropdown_mm5w922e', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5z3hjy', kind: 'dropdown' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5w30md', kind: 'date' },
       { key: 'neededBy', column: 'date_mm57f4h4', kind: 'date' },
     ],
@@ -212,6 +216,7 @@ const BOARDS = {
       { key: 'details', column: 'long_text_mm3z4q79', kind: 'long_text' },  // existing Description
       { key: 'dueDate', column: 'date_mm3z4zk3', kind: 'date' },
       { key: 'outlet', column: 'dropdown_mm5wghtf', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5zr4wf', kind: 'dropdown' },
       { key: 'liveOrOnPropertyDate', column: 'date_mm5w8rdq', kind: 'date' },
     ],
   },
@@ -242,6 +247,7 @@ const SOCIAL_BOARD = {
   defaultStatus: 'Draft',             // asset not produced yet
   postDateColumn: 'date_mm2fwsds',    // "Post Date"
   brandColumn: 'dropdown_mm2f9ncb',   // canonical outlet/brand
+  areaColumn: 'dropdown_mm5z3tvk',    // Area / Department — shared launch taxonomy
   linkToCreativeCol: 'link_mm58rtg',  // "Linked Creative Request" on the Social board
 };
 const CREATIVE_SOCIAL_LINK_COL = 'link_mm58hayh'; // "Linked Social Post" on the Creative board
@@ -264,6 +270,7 @@ const BUSINESS_CARD = {
     { key: 'email', column: 'email_mm58k036', kind: 'email' },   // requester's sign-in email — powers "My Requests"
     { key: 'team', column: 'dropdown_mm5wjexh', kind: 'dropdown' },
     { key: 'outlet', column: 'dropdown_mm5wktj5', kind: 'dropdown' },
+      { key: 'area', column: 'dropdown_mm5zf4bn', kind: 'dropdown' },
     { key: 'requestedCompletionDate', column: 'date_mm5wv528', kind: 'date' },
     { key: 'liveOrOnPropertyDate', column: 'date_mm5wghs9', kind: 'date' },
   ],
@@ -298,7 +305,7 @@ const EMAIL_LABELS = {
   idealDueDate: 'Ideal due date', projectDescription: 'Project description',
   printType: 'Type', details: 'Details', neededBy: 'Needed by',
   requesterName: 'Requester name', requesterEmail: 'Email', email: 'Email',
-  ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet / area', programTitle: 'Program / initiative',
+  ccEmail: 'Also notify', team: 'Team', outlet: 'Outlet / area', area: 'Area / department', programTitle: 'Program / initiative',
   liveOrOnPropertyDate: 'Live / on property', requestedCompletionDate: 'Requested completion',
   requiresProcurement: 'Requires procurement', procurementNotes: 'What to procure',
   procurementEstimateBasis: 'Procurement estimate basis', procurementWorkingCostEstimate: 'Procurement working cost estimate',
@@ -477,6 +484,7 @@ function assertCanonical(fields) {
   const checks = [
     ['team', CANONICAL.teams],
     ['outlet', CANONICAL.outlets],
+    ['area', CANONICAL.areas],
     ['launchWorkstream', CANONICAL.workstreams],
     ['launchPriority', CANONICAL.priorities],
     ['launchImpact', CANONICAL.launchImpacts],
@@ -512,9 +520,15 @@ function validateProcurementEstimate(estimateBasis, workingCostEstimate) {
   if (!Number.isFinite(estimate) || estimate <= 0) throw badRequest('Working cost estimate must be a valid amount greater than $0.');
 }
 
+// Area is the field the Launch Hub groups on, so it is required everywhere a
+// requester can file. BEO is deliberately excluded — that board is event-driven
+// and Libby asked to keep it out of the area model for now.
+const AREA_REQUIRED_CATEGORIES = new Set(['procurement', 'uniform', 'creative', 'print', 'general']);
+
 function validateCreationFields(category, fields) {
   const missing = [];
   if (!fields.team) missing.push('team');
+  if (AREA_REQUIRED_CATEGORIES.has(category) && !String(fields.area || '').trim()) missing.push('area / department');
   if (!getRequesterEmail(fields)) missing.push('requester email');
   if (!requestedDateFor(category, fields)) missing.push('requested completion date');
   const productionType = category === 'creative' && ['Photography', 'Videography'].includes(String(fields.contentType || ''));
@@ -1232,6 +1246,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
       const pf = {
         team: f.team,
         outlet: f.outlet,
+        area: f.area,
         requesterEmail: f.email,
         ccEmail: f.ccEmail,
         dueDate: f.idealDueDate,
@@ -1301,6 +1316,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
       const sf = {
         team: f.team,
         outlet: f.outlet,
+        area: f.area,
         requesterEmail: f.email,
         requestedCompletionDate: f.idealDueDate,
         socialPostDate: f.socialPostDate,
@@ -1319,6 +1335,7 @@ async function createRoutedRequest({ category, fields, role, authEmail }) {
         [SOCIAL_BOARD.linkToCreativeCol]: { url: creativeUrl, text: 'Creative request' },
       };
       if (sf.outlet) scv[SOCIAL_BOARD.brandColumn] = { labels: [sf.outlet] };
+      if (sf.area) scv[SOCIAL_BOARD.areaColumn] = { labels: [sf.area] };
       Object.assign(scv, integrationValues('social', SOCIAL_BOARD, sf, {
         requestId: childRequestId, familyId, parentId: requestId, childType: 'social',
         syncState: 'pending', createdAt, title: item.name, rawStatus: SOCIAL_BOARD.defaultStatus,
